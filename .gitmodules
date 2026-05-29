@@ -1,0 +1,9 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/Fivoryu/si2_p2_backend.git
+[submodule "web"]
+	path = web
+	url = https://github.com/Fivoryu/si2_p2_frontend.git
+[submodule "mobile"]
+	path = mobile
+	url = https://github.com/Fivoryu/si2_p2_mobile.git

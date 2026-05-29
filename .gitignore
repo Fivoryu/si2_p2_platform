@@ -1,0 +1,11 @@
+# Repo PLATAFORMA (raíz) — ver docs/MULTI_REPO.md
+.floci-data/
+*.pyc
+__pycache__/
+.env
+.env.local
+.idea/
+.vscode/
+*.bak/
+
+# Los submódulos (backend/web/mobile) tienen su propio .gitignore dentro de cada repo

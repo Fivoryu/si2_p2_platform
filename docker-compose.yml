@@ -1,0 +1,118 @@
+# Stack completo: Floci (AWS local) + PostgreSQL + Redis + API + Web
+# Uso: docker compose up -d --build
+# Web: http://localhost:4200  |  API: http://localhost:8000/docs  |  Floci: http://localhost:4566
+
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./.floci-data:/app/data
+
+  floci-init:
+    image: amazon/aws-cli:2.15.0
+    depends_on:
+      floci:
+        condition: service_started
+    environment:
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Waiting for Floci..."
+        until aws s3 ls --endpoint-url "$$AWS_ENDPOINT_URL" 2>/dev/null; do sleep 3; done
+        echo "Provisioning Floci (S3, SNS)..."
+        aws s3 mb s3://emergencias-evidencias --endpoint-url "$$AWS_ENDPOINT_URL" 2>/dev/null || true
+        aws s3 mb s3://emergencias-web --endpoint-url "$$AWS_ENDPOINT_URL" 2>/dev/null || true
+        aws sns create-topic --name emergencias-push --endpoint-url "$$AWS_ENDPOINT_URL" 2>/dev/null || true
+        aws s3 ls --endpoint-url "$$AWS_ENDPOINT_URL"
+        echo "Floci resources ready."
+    restart: "no"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: emergencias_db
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emergencias_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/emergencias_db
+      DATABASE_URL_ADMIN: postgresql+psycopg2://app_admin:postgres@db:5432/emergencias_db
+      JWT_SECRET: dev-docker-jwt-secret-min-32-characters-long
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_MINUTES: "120"
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:4200,http://localhost,http://127.0.0.1:4200
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_S3_PUBLIC_ENDPOINT: http://localhost:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_BUCKET_EVIDENCIAS: emergencias-evidencias
+      PUBLIC_TENANT_ID: 22222222-0000-0000-0000-000000000000
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      FCM_SERVER_KEY: ""
+      OPENAI_API_KEY: ""
+      MAPS_API_KEY: ""
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      floci-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        API_URL: http://localhost:8000
+        WS_URL: ws://localhost:8000
+    ports:
+      - "4200:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:

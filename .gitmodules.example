@@ -1,0 +1,17 @@
+# Renombra a .gitmodules después de: git submodule add <url> <path>
+# O deja que git lo genere con setup-multi-repo.ps1
+
+[submodule "backend"]
+	path = backend
+	url = https://github.com/TU_USUARIO/emergencias-backend.git
+	branch = main
+
+[submodule "web"]
+	path = web
+	url = https://github.com/TU_USUARIO/emergencias-web.git
+	branch = main
+
+[submodule "mobile"]
+	path = mobile
+	url = https://github.com/TU_USUARIO/emergencias-mobile.git
+	branch = main

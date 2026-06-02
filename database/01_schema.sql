@@ -272,6 +272,18 @@ CREATE TABLE tarifa (
     CONSTRAINT uq_tarifa UNIQUE (taller_id, tipo_incidente_id)
 );
 
+-- Catálogo de especialidades definidas por cada taller (CU-08).
+CREATE TABLE especialidad_taller (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id           UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    taller_id           UUID NOT NULL REFERENCES taller(id) ON DELETE CASCADE,
+    nombre              VARCHAR(80)  NOT NULL,
+    activo              BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT uq_especialidad_taller_nombre UNIQUE (taller_id, nombre)
+);
+
 CREATE TABLE tecnico (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id           UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -280,11 +292,18 @@ CREATE TABLE tecnico (
     usuario_id          UUID UNIQUE REFERENCES usuario(id) ON DELETE SET NULL,
     nombre              VARCHAR(120) NOT NULL,
     telefono            VARCHAR(30),
-    especialidad        VARCHAR(80),
+    especialidad        VARCHAR(80),  -- resumen legado (nombres concatenados)
     disponible          BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT uq_tecnico_telefono_tenant UNIQUE (tenant_id, telefono)
+);
+
+-- Especialidades asignadas a cada técnico (desde el catálogo del taller).
+CREATE TABLE tecnico_especialidad (
+    tecnico_id          UUID NOT NULL REFERENCES tecnico(id) ON DELETE CASCADE,
+    especialidad_id     UUID NOT NULL REFERENCES especialidad_taller(id) ON DELETE CASCADE,
+    PRIMARY KEY (tecnico_id, especialidad_id)
 );
 
 -- =====================================================================
@@ -561,6 +580,9 @@ CREATE INDEX idx_vehiculo_conductor        ON vehiculo(conductor_id);
 CREATE INDEX idx_taller_tenant             ON taller(tenant_id);
 CREATE INDEX idx_taller_disponible         ON taller(tenant_id, disponible) WHERE disponible;
 CREATE INDEX idx_tecnico_taller            ON tecnico(taller_id);
+CREATE INDEX idx_especialidad_taller       ON especialidad_taller(taller_id);
+CREATE INDEX idx_especialidad_tenant       ON especialidad_taller(tenant_id);
+CREATE INDEX idx_tecnico_especialidad_esp  ON tecnico_especialidad(especialidad_id);
 
 -- Incidentes: consultas por tenant, conductor, estado y rango temporal (KPIs).
 CREATE INDEX idx_incidente_tenant          ON incidente(tenant_id);
@@ -600,7 +622,7 @@ DO $$
 DECLARE
     t TEXT;
     tablas TEXT[] := ARRAY[
-        'plan','tenant','usuario','vehiculo','taller','tarifa','tecnico',
+        'plan','tenant','usuario','vehiculo','taller','tarifa','especialidad_taller','tecnico',
         'incidente','asignacion','cotizacion','pago','sla_config'
     ];
 BEGIN
@@ -682,7 +704,7 @@ DO $$
 DECLARE
     t TEXT;
     tablas TEXT[] := ARRAY[
-        'usuario','vehiculo','taller','taller_servicio','tarifa','tecnico',
+        'usuario','vehiculo','taller','taller_servicio','tarifa','especialidad_taller','tecnico',
         'incidente','evidencia','clasificacion_ia','incidente_estado_historial',
         'taller_candidato','asignacion','cotizacion','pago','factura',
         'notificacion','conexion_ws','ubicacion_tracking','sync_mapping','sla_config'

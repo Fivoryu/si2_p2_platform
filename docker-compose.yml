@@ -65,6 +65,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    volumes:
+      - ./backend/ml/models:/app/ml/models
+      - ./backend/app:/app/app
     ports:
       - "8000:8000"
     environment:

@@ -46,7 +46,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-10 | Reportar Nueva Emergencia | MÓVIL | CLI |
 | CU-11 | Adjuntar Imágenes al Reporte | MÓVIL | CLI |
 | CU-12 | Adjuntar Audio al Reporte | MÓVIL | CLI |
-| CU-13 | Enviar Ubicación en Tiempo Real (GPS) | MÓVIL | CLI |
+| CU-13 | Enviar Ubicación GPS al Reportar | MÓVIL | CLI |
 | CU-14 | Visualizar Estado Actual de la Emergencia | MÓVIL, WEB | CLI, TAL |
 | CU-15 | Cancelar Emergencia (si está pendiente) | MÓVIL | CLI |
 | CU-16 | Ver Historial de Emergencias del Conductor | MÓVIL | CLI |
@@ -58,11 +58,11 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-22 | Buscar Talleres Candidatos (cercanía, tipo, disponibilidad) | BACKEND | SIA, MAP |
 | CU-23 | Asignar Taller Óptimo (motor de asignación) | BACKEND | SIA |
 | CU-24 | Notificar a Taller sobre Nueva Solicitud (Push) | WEB, MÓVIL | TAL |
-| CU-25 | Aceptar Solicitud (Taller) | WEB | TAL |
+| CU-25 | Aceptar Solicitud con Oferta Editable (Taller) | WEB | TAL |
 | CU-26 | Rechazar Solicitud (con motivo opcional) | WEB | TAL |
-| CU-27 | Solicitar Cotización del Daño (IA + tarifas del taller) | MÓVIL, WEB | CLI, TAL, SIA |
-| CU-28 | Calcular Tiempo Estimado de Reparación | BACKEND | SIA, TAL |
-| CU-29 | Seleccionar Taller de entre los Candidatos (Cliente) | MÓVIL | CLI |
+| CU-27 | Generar Oferta/Cotización Competitiva (precio sugerido + precio del taller) | MÓVIL, WEB | CLI, TAL, SIA |
+| CU-28 | Calcular Tiempo Estimado de Llegada y Reparación | BACKEND | SIA, TAL, MAP |
+| CU-29 | Seleccionar Oferta de Taller (Cliente tipo Uber/InDrive) | MÓVIL | CLI |
 | CU-30 | Efectuar Pago del Servicio (Pasarela) | MÓVIL, WEB | CLI, PAG |
 | CU-31 | Consultar Comisión del Taller (10% para plataforma) | WEB | TAL, ADT |
 | CU-32 | Generar Factura / Comprobante | MÓVIL, WEB | CLI, TAL |
@@ -70,11 +70,10 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-34 | Visualizar Ubicación del Taller en Mapa (Tracking) | MÓVIL | CLI |
 | CU-35 | Recibir Notificación Inmediata de Cambio de Estado (aceptado, en camino, finalizado) | MÓVIL, WEB | CLI, TAL |
 | CU-36 | Actualizar Estado del Incidente (Taller: en camino, en atención, finalizado) | WEB | TAL |
-| CU-37 | Transmitir Llegada del Técnico (Push al cliente) | BACKEND | SIA |
-| CU-38 | Guardar Emergencia Localmente (modo offline) | MÓVIL | CLI |
-| CU-39 | Marcar Emergencia como Pendiente de Sincronización | MÓVIL | CLI |
+| CU-37 | Transmitir Llegada del Técnico (Push al cliente) | WEB, MÓVIL | TAL |
+| CU-38 | Guardar Emergencia Localmente y Marcar como Pendiente de Sincronización (modo offline) | MÓVIL | CLI |
 | CU-40 | Sincronizar Automáticamente al Recuperar Conexión | MÓVIL | CLI, SIA |
-| CU-41 | Resolver Conflictos de Sincronización (evitar duplicados) | BACKEND | SIA |
+| CU-41 | Resolver Conflictos de Sincronización (evitar duplicados) | BACKEND | Sistema |
 | CU-42 | Visualizar Dashboard de KPIs (Administrador) | WEB | ADM, ADT |
 | CU-43 | Filtrar KPIs por Tenant | WEB | ADM, ADT |
 | CU-44 | Exportar Reporte de KPIs (PDF/CSV) | WEB | ADM, ADT |
@@ -82,8 +81,9 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-46 | Crear Nuevo Tenant | WEB | ADM |
 | CU-47 | Asignar Administrador a un Tenant | WEB | ADM |
 | CU-48 | Configurar Plan de Servicio por Tenant | WEB | ADM |
+| CU-49 | Calificar Servicio Post-Atención | MÓVIL | CLI |
 
-> **Nota:** Se han definido 48 casos de uso (≈45, ligeramente superior para escalabilidad). Se pueden fusionar algunos si se requiere exactitud, pero se prefiere mantener granularidad.
+> **Nota:** Se han definido 48 casos de uso. CU-39 fue fusionado con CU-38 por ser la misma acción, y se agregó CU-49 para completar el flujo post-atención.
 
 ---
 
@@ -103,7 +103,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-10 | Reportar Nueva Emergencia | CLI | ALTA |
 | CU-11 | Adjuntar Imágenes al Reporte | CLI | ALTA |
 | CU-12 | Adjuntar Audio al Reporte | CLI | ALTA |
-| CU-13 | Enviar Ubicación en Tiempo Real (GPS) | CLI | ALTA |
+| CU-13 | Enviar Ubicación GPS al Reportar | CLI | ALTA |
 | CU-14 | Visualizar Estado Actual de la Emergencia | CLI, TAL | ALTA |
 | CU-15 | Cancelar Emergencia | CLI | MEDIA |
 | CU-16 | Ver Historial de Emergencias | CLI | MEDIA |
@@ -115,11 +115,11 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-22 | Buscar Talleres Candidatos | SIA, MAP | ALTA |
 | CU-23 | Asignar Taller Óptimo | SIA | ALTA |
 | CU-24 | Notificar a Taller sobre Nueva Solicitud | TAL | ALTA |
-| CU-25 | Aceptar Solicitud | TAL | ALTA |
+| CU-25 | Aceptar Solicitud con Oferta Editable | TAL | ALTA |
 | CU-26 | Rechazar Solicitud | TAL | MEDIA |
-| CU-27 | Solicitar Cotización del Daño | CLI, TAL, SIA | ALTA |
-| CU-28 | Calcular Tiempo Estimado de Reparación | SIA, TAL | ALTA |
-| CU-29 | Seleccionar Taller (Cliente) | CLI | ALTA |
+| CU-27 | Generar Oferta/Cotización Competitiva | CLI, TAL, SIA | ALTA |
+| CU-28 | Calcular Tiempo Estimado de Llegada y Reparación | SIA, TAL, MAP | ALTA |
+| CU-29 | Seleccionar Oferta de Taller | CLI | ALTA |
 | CU-30 | Efectuar Pago del Servicio | CLI, PAG | ALTA |
 | CU-31 | Consultar Comisión del Taller | TAL, ADT | MEDIA |
 | CU-32 | Generar Factura | CLI, TAL | MEDIA |
@@ -127,11 +127,10 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-34 | Visualizar Ubicación del Taller en Mapa | CLI | ALTA |
 | CU-35 | Recibir Notificación Inmediata de Cambio de Estado | CLI, TAL | ALTA |
 | CU-36 | Actualizar Estado del Incidente (Taller) | TAL | ALTA |
-| CU-37 | Transmitir Llegada del Técnico | SIA | ALTA |
-| CU-38 | Guardar Emergencia Localmente (Offline) | CLI | ALTA |
-| CU-39 | Marcar Emergencia Pendiente de Sincronización | CLI | ALTA |
+| CU-37 | Transmitir Llegada del Técnico | TAL | ALTA |
+| CU-38 | Guardar Emergencia Localmente y Marcar como Pendiente (Offline) | CLI | ALTA |
 | CU-40 | Sincronizar Automáticamente | CLI, SIA | ALTA |
-| CU-41 | Resolver Conflictos de Sincronización | SIA | MEDIA |
+| CU-41 | Resolver Conflictos de Sincronización | Sistema | MEDIA |
 | CU-42 | Visualizar Dashboard de KPIs | ADM, ADT | ALTA |
 | CU-43 | Filtrar KPIs por Tenant | ADM, ADT | ALTA |
 | CU-44 | Exportar Reporte de KPIs | ADM, ADT | MEDIA |
@@ -139,6 +138,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-46 | Crear Nuevo Tenant | ADM | ALTA |
 | CU-47 | Asignar Administrador a un Tenant | ADM | ALTA |
 | CU-48 | Configurar Plan de Servicio por Tenant | ADM | MEDIA |
+| CU-49 | Calificar Servicio Post-Atención | CLI | MEDIA |
 
 ---
 
@@ -162,7 +162,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-09 | Gestionar Disponibilidad del Taller | TAL | ALTA |
 | CU-03 | Recuperar Contraseña | CLI, TAL, ADT, ADM | MEDIA |
 
-> **Total Ciclo 1:** 10 casos de uso.
+> **Total Ciclo 1:** 9 casos de uso.
 
 ### Ciclo #2 (Primer Parcial) – Reporte de emergencia + IA (clasificación y resumen)
 
@@ -171,7 +171,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-10 | Reportar Nueva Emergencia | CLI | ALTA |
 | CU-11 | Adjuntar Imágenes al Reporte | CLI | ALTA |
 | CU-12 | Adjuntar Audio al Reporte | CLI | ALTA |
-| CU-13 | Enviar Ubicación en Tiempo Real (GPS) | CLI | ALTA |
+| CU-13 | Enviar Ubicación GPS al Reportar | CLI | ALTA |
 | CU-14 | Visualizar Estado Actual de la Emergencia | CLI, TAL | ALTA |
 | CU-15 | Cancelar Emergencia | CLI | MEDIA |
 | CU-16 | Ver Historial de Emergencias | CLI | MEDIA |
@@ -190,16 +190,17 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-22 | Buscar Talleres Candidatos | SIA, MAP | ALTA |
 | CU-23 | Asignar Taller Óptimo | SIA | ALTA |
 | CU-24 | Notificar a Taller sobre Nueva Solicitud | TAL | ALTA |
-| CU-25 | Aceptar Solicitud | TAL | ALTA |
+| CU-25 | Aceptar Solicitud con Oferta Editable | TAL | ALTA |
 | CU-26 | Rechazar Solicitud | TAL | MEDIA |
-| CU-27 | Solicitar Cotización del Daño | CLI, TAL, SIA | ALTA |
-| CU-28 | Calcular Tiempo Estimado de Reparación | SIA, TAL | ALTA |
-| CU-29 | Seleccionar Taller (Cliente) | CLI | ALTA |
+| CU-27 | Generar Oferta/Cotización Competitiva | CLI, TAL, SIA | ALTA |
+| CU-28 | Calcular Tiempo Estimado de Llegada y Reparación | SIA, TAL, MAP | ALTA |
+| CU-29 | Seleccionar Oferta de Taller | CLI | ALTA |
 | CU-30 | Efectuar Pago del Servicio | CLI, PAG | ALTA |
 | CU-31 | Consultar Comisión del Taller | TAL, ADT | MEDIA |
 | CU-32 | Generar Factura | CLI, TAL | MEDIA |
+| CU-49 | Calificar Servicio Post-Atención | CLI | MEDIA |
 
-> **Total Ciclo 3:** 11 casos de uso.
+> **Total Ciclo 3:** 12 casos de uso.
 
 ### Ciclo #4 (Segundo Parcial) – Módulo de tiempo real (WebSockets + tracking)
 
@@ -209,7 +210,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-34 | Visualizar Ubicación del Taller en Mapa | CLI | ALTA |
 | CU-35 | Recibir Notificación Inmediata de Cambio de Estado | CLI, TAL | ALTA |
 | CU-36 | Actualizar Estado del Incidente (Taller) | TAL | ALTA |
-| CU-37 | Transmitir Llegada del Técnico (Push) | SIA | ALTA |
+| CU-37 | Transmitir Llegada del Técnico (Push) | TAL | ALTA |
 
 > **Total Ciclo 4:** 5 casos de uso (se pueden complementar con algunos de ciclo 3 ya existentes, pero se listan los nuevos específicos).
 
@@ -217,10 +218,9 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 
 | ID | NOMBRE | ACTOR(ES) | PRIORIDAD |
 |----|--------|-----------|-----------|
-| CU-38 | Guardar Emergencia Localmente (Offline) | CLI | ALTA |
-| CU-39 | Marcar Emergencia Pendiente de Sincronización | CLI | ALTA |
+| CU-38 | Guardar Emergencia Localmente y Marcar como Pendiente de Sincronización (Offline) | CLI | ALTA |
 | CU-40 | Sincronizar Automáticamente al Recuperar Conexión | CLI, SIA | ALTA |
-| CU-41 | Resolver Conflictos de Sincronización | SIA | MEDIA |
+| CU-41 | Resolver Conflictos de Sincronización | Sistema | MEDIA |
 | CU-42 | Visualizar Dashboard de KPIs | ADM, ADT | ALTA |
 | CU-43 | Filtrar KPIs por Tenant | ADM, ADT | ALTA |
 | CU-44 | Exportar Reporte de KPIs | ADM, ADT | MEDIA |
@@ -229,7 +229,7 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 | CU-47 | Asignar Administrador a un Tenant | ADM | ALTA |
 | CU-48 | Configurar Plan de Servicio por Tenant | ADM | MEDIA |
 
-> **Total Ciclo 5:** 11 casos de uso.
+> **Total Ciclo 5:** 10 casos de uso.
 
 ---
 
@@ -237,14 +237,14 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 
 | Ciclo | Nombre | # Casos de uso | Correspondencia |
 |-------|--------|----------------|------------------|
-| 1 | Usuarios y vehículos | 10 | Primer Parcial |
+| 1 | Usuarios y vehículos | 9 | Primer Parcial |
 | 2 | Reporte e IA (clasificación) | 12 | Primer Parcial |
-| 3 | Asignación, cotizaciones, pagos | 11 | Primer Parcial |
+| 3 | Asignación, cotizaciones, pagos y calificación | 12 | Primer Parcial |
 | 4 | Tiempo real (WebSockets + tracking) | 5 | Segundo Parcial |
-| 5 | Offline, KPIs, multi‑tenant | 11 | Segundo Parcial |
-| **Total** | | **49** | (≈45 CU escalables) |
+| 5 | Offline, KPIs, multi‑tenant | 10 | Segundo Parcial |
+| **Total** | | **48** | (≈45 CU escalables) |
 
-> **Nota:** Los números de casos de uso suman 49 (ligeramente por encima de 45), pero puede ajustarse fusionando algunos de baja prioridad (ej. CU-31 y CU-32, o CU-44 y CU-48). Se mantiene la escalabilidad.
+> **Nota:** Se han definido 48 casos de uso. CU-39 fue fusionado con CU-38 (almacenamiento offline y marcado de pendencia son la misma acción). Se agregó CU-49 (Calificar Servicio) para completar el flujo post-atención.
 
 ---
 

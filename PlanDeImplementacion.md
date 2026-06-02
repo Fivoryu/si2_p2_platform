@@ -259,7 +259,7 @@ Build order:
 7. **Push** (`firebase_messaging`): request permission, get FCM token, send to backend; handle foreground/background notifications for status changes. (CU-35)
 8. **Payment**: open Stripe Checkout (webview) or `flutter_stripe`; on success the backend webhook records the payment. (CU-30)
 
-> Offline-first rule: the UI reads from sqflite, and the network layer reconciles. Pending incidents show a clock icon (CU-39).
+> Offline-first rule: the UI reads from sqflite, and the network layer reconciles. Pending incidents show a clock icon (CU-38).
 
 ---
 

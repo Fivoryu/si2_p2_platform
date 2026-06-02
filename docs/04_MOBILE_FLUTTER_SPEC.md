@@ -53,7 +53,7 @@ Dio buildDio() {
 }
 ```
 
-## 4. Local DB (offline) — `lib/data/local_db.dart` (CU-38, CU-39)
+## 4. Local DB (offline) — `lib/data/local_db.dart` (CU-38)
 ```dart
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -115,7 +115,7 @@ await LocalDb.insertPending(row);          // ALWAYS local first (CU-38)
 if (await Connectivity().checkConnectivity() != ConnectivityResult.none) {
   await SyncService.syncNow();             // try immediately
 }
-// UI: show "guardado, se sincronizará" with a clock icon if still PENDIENTE (CU-39)
+// UI: show "guardado, se sincronizará" with a clock icon if still PENDIENTE (CU-38)
 ```
 
 ## 6. Sync service — `lib/services/sync_service.dart` (CU-40, CU-41)

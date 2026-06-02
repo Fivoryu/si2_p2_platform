@@ -126,9 +126,9 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Actores** | CLI, SIA |
 | **Actor iniciador** | Conductor autenticado |
 | **Precondición** | CU-01 (conductor autenticado) y CU-05 (al menos un vehículo registrado). |
-| **Flujo principal** | 1. Conductor abre la app y selecciona "Nueva Emergencia". 2. Elige el vehículo afectado. 3. Opcionalmente adjunta fotos (CU-11), audio (CU-12) y texto. 4. El sistema obtiene la ubicación GPS actual (CU-13). 5. Al enviar, se crea un incidente con estado "pendiente". 6. El backend dispara los procesos de IA (transcripción, clasificación, resumen). 7. Se asigna un UUID local y se envía al backend si hay conexión; si no, se activa modo offline (CU-38). 8. El sistema muestra el ID de la emergencia y el estado actual. |
-| **Postcondición** | Se crea un registro de incidente en el sistema (local o remoto). |
-| **Excepción** | No hay ubicación (GPS desactivado), falta conexión y no se pudo almacenar localmente, error en IA. |
+| **Flujo principal** | 1. Conductor abre la app y selecciona "Nueva Emergencia". 2. Elige el vehículo afectado. 3. Opcionalmente adjunta fotos (CU-11), audio (CU-12) y texto. 4. El sistema obtiene la ubicación GPS actual (CU-13). 5. Al enviar, se crea un incidente con estado "pendiente". 6. El backend dispara `run_ai_pipeline()` como background task: transcription (CU-17), clasificación por texto (CU-19), clasificación por imágenes (CU-18), fusión, resumen (CU-20), prioridad (CU-21), y finalmente asignación (CU-22/CU-23). 7. Se asigna un UUID local y se envía al backend si hay conexión; si no, se activa modo offline (CU-38). 8. El sistema muestra el ID de la emergencia y el estado actual. |
+| **Postcondición** | Se crea un registro de incidente en el sistema (local o remoto). El pipeline de IA procesa en background y el estado evoluciona a "BUSCANDO_TALLER" automáticamente. |
+| **Excepción** | No hay ubicación (GPS desactivado), falta conexión y no se pudo almacenar localmente, error en IA (fallback a keywords). |
 
 #### CU-11. Adjuntar Imágenes al Reporte
 
@@ -138,9 +138,9 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Actores** | CLI, SIA |
 | **Actor iniciador** | Conductor durante el reporte de emergencia |
 | **Precondición** | CU-10 en proceso (emergencia no finalizada). |
-| **Flujo principal** | 1. Conductor pulsa "Tomar foto" o "Seleccionar de galería". 2. El sistema permite capturar múltiples imágenes. 3. Las imágenes se comprimen y se convierten a base64 o se guardan localmente. 4. Se envían junto con el reporte. 5. El sistema de IA analiza las imágenes (CU-18). |
-| **Postcondición** | Las imágenes quedan asociadas al incidente. |
-| **Excepción** | Archivo corrupto, tamaño excesivo, permisos de cámara denegados. |
+| **Flujo principal** | 1. Conductor pulsa "Tomar foto" o "Seleccionar de galería". 2. El sistema permite capturar múltiples imágenes (máx. 5). 3. Las imágenes se comprimen (calidad 80%) y se codifican en base64. 4. Se envían junto con el reporte al endpoint `POST /api/v1/ia/clasificar-imagen`. 5. La respuesta de YOLOv8 (`codigo`, `confianza`, `descripcion`) se muestra al conductor como sugerencia antes de confirmar. 6. Las imágenes quedan asociadas al incidente como evidencia tipo `IMAGEN`. |
+| **Postcondición** | Las imágenes quedan asociadas al incidente y la clasificación YOLOv8 está disponible para el conductor. |
+| **Excepción** | Archivo corrupto, tamaño excesivo (>8MB), permisos de cámara denegados, modelos IA no disponibles (muestra sugerencia genérica). |
 
 #### CU-12. Adjuntar Audio al Reporte
 
@@ -150,19 +150,19 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Actores** | CLI, SIA |
 | **Actor iniciador** | Conductor durante el reporte de emergencia |
 | **Precondición** | CU-10 en proceso. |
-| **Flujo principal** | 1. Conductor pulsa "Grabar audio". 2. El sistema solicita permiso de micrófono. 3. Conductor graba el mensaje (máx. 60 segundos). 4. El audio se codifica (ej. AAC a base64) y se envía. 5. El backend envía el audio al servicio de transcripción (CU-17). |
-| **Postcondición** | El audio queda asociado al incidente y se genera una transcripción. |
-| **Excepción** | Permiso de micrófono denegado, grabación vacía, error en transcripción. |
+| **Flujo principal** | 1. Conductor pulsa "Grabar audio". 2. El sistema solicita permiso de micrófono. 3. Conductor graba el mensaje (máx. 60 segundos). 4. El audio se codifica (AAC/WAV a base64). 5. Se envía al endpoint `POST /api/v1/ia/transcribir-audio`. 6. La respuesta (`transcripcion`, `motor`) se muestra al conductor y se almacena como evidencia tipo `AUDIO`. 7. El backend dispara CU-19 automáticamente. |
+| **Postcondición** | El audio queda asociado al incidente con su transcripción generada por IA. |
+| **Excepción** | Permiso de micrófono denegado, grabación vacía, error en transcripción (OpenAI o Google). |
 
-#### CU-13. Enviar Ubicación en Tiempo Real (GPS)
+#### CU-13. Enviar Ubicación GPS al Reportar
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Obtener y enviar las coordenadas geográficas exactas del conductor durante el reporte y, opcionalmente, durante el seguimiento. |
+| **Propósito** | Obtener y enviar las coordenadas geográficas exactas del conductor al momento de reportar la emergencia. |
 | **Actores** | CLI, MAP |
-| **Actor iniciador** | Conductor (automático o manual) |
+| **Actor iniciador** | Conductor (automático al crear emergencia) |
 | **Precondición** | Permiso de ubicación concedido en el dispositivo. |
-| **Flujo principal** | 1. El sistema accede al GPS del dispositivo. 2. Obtiene latitud y longitud. 3. Envía la ubicación al backend al crear la emergencia. 4. Durante el seguimiento, se actualiza periódicamente (si el usuario autoriza). 5. El servicio de mapas se usa para calcular distancias a talleres (CU-22). |
+| **Flujo principal** | 1. El sistema accede al GPS del dispositivo. 2. Obtiene latitud y longitud. 3. Envía la ubicación al backend al crear la emergencia. 4. El servicio de mapas se usa para calcular distancias a talleres (CU-22). |
 | **Postcondición** | La ubicación queda registrada en el incidente y se utiliza para asignación. |
 | **Excepción** | GPS desactivado, señal débil (se usa última ubicación conocida), error en la API de mapas. |
 
@@ -210,21 +210,25 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Actores** | SIA |
 | **Actor iniciador** | Sistema (automático al recibir audio) |
 | **Precondición** | CU-12 completado (audio adjuntado). |
-| **Flujo principal** | 1. El backend recibe el audio. 2. Envía el archivo a un servicio de reconocimiento de voz (Google Speech-to-Text o similar). 3. Obtiene la transcripción textual. 4. Almacena el texto en la tabla de evidencias. 5. Dispara CU-19 (clasificación por texto). |
+| **Flujo principal** | 1. El backend recibe el audio codificado en base64. 2. Detecta el tipo MIME (AAC/WAV). 3. Si `OPENAI_API_KEY` está configurada, usa Whisper (OpenAI): envía a `https://api.openai.com/v1/audio/transcriptions` con `model=whisper-1`. 4. Si no hay ключ OpenAI, intenta Google Speech-to-Text (requiere `speech_recognition` + `pydub` para convertir a WAV). 5. Almacena la transcripción en la tabla `evidencia`. 6. Dispara CU-19 (clasificación por texto). |
 | **Postcondición** | Se genera una transcripción asociada al incidente. |
-| **Excepción** | Audio ininteligible, tiempo excedido, error en API externa. |
+| **Excepción** | Audio ininteligible, tiempo excedido (>60s timeout), API no disponible, archivo corrupto. |
+| **Motor(es)** | `openai-whisper` (principal) o `google-speech` (fallback). |
+| **Endpoint** | `POST /api/v1/ia/transcribir-audio` (ver `backend/app/api/ia.py:28`). |
 
 #### CU-18. Clasificar Incidente por Imágenes (IA)
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Utilizar un modelo de visión artificial para identificar el tipo de daño (batería, llanta, choque, motor, otros) a partir de las fotos enviadas. |
+| **Propósito** | Utilizar modelos de visión artificial (YOLOv8) para identificar el tipo de daño (batería, llanta, choque, motor, otros) a partir de las fotos enviadas. |
 | **Actores** | SIA |
 | **Actor iniciador** | Sistema (automático al recibir imágenes) |
 | **Precondición** | CU-11 completado. |
-| **Flujo principal** | 1. El backend recibe una o más imágenes. 2. Las redimensiona y normaliza. 3. Las envía a un modelo preentrenado (ej. CNN con TensorFlow Lite). 4. Obtiene una etiqueta y un nivel de confianza. 5. Almacena la clasificación en el incidente. 6. Combina con clasificación por texto para mayor precisión. |
-| **Postcondición** | El incidente recibe una categoría preliminar. |
-| **Excepción** | Imagen borrosa o sin contenido relevante, modelo no disponible, confianza baja (se marca como "incierto"). |
+| **Flujo principal** | 1. El backend recibe la imagen y la convierte a RGB con PIL. 2. Carga dos modelos YOLOv8 desde `backend/ml/models/`: `dashboard_best.pt` (testigos del tablero) y `cardd_best.pt` (daños CarDD). 3. Ejecuta `model.predict()` con umbral de confianza 0.25. 4. Mapea etiquetas a códigos: `Charging System Issue`→`BATERIA`, `tire flat`→`LLANTA`, `dent/scratch/crack`→`CHOQUE`, `Check Engine`→`MOTOR`. 5. Selecciona la predicción de mayor confianza. Si `conf < 0.35`, clasifica como `OTROS`. 6. Construye una descripción amigable para el conductor. 7. Almacena resultado en `clasificacion_ia` y actualiza el incidente. |
+| **Postcondición** | El incidente recibe una categoría con descripción y prioridad sugerida. |
+| **Excepción** | Imagen borrosa (conf < 0.35 → "OTROS"), modelo no disponible (fallback con confianza 0), archivo corrupto. |
+| **Modelos** | YOLOv8 (`dashboard_best.pt` + `cardd_best.pt`) en `backend/ml/models/`. |
+| **Endpoint** | `POST /api/v1/ia/clasificar-imagen` (ver `backend/app/api/ia.py:11`). |
 
 #### CU-19. Clasificar Incidente por Texto (IA)
 
@@ -234,9 +238,10 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Actores** | SIA |
 | **Actor iniciador** | Sistema (al recibir texto o después de CU-17) |
 | **Precondición** | Se dispone de texto (transcripción o campo adicional). |
-| **Flujo principal** | 1. El backend extrae palabras clave del texto (ej. "batería", "pinchazo", "choque"). 2. Aplica un modelo de NLP (BART o similar) para clasificación. 3. Obtiene una categoría y prioridad sugerida. 4. Fusiona con resultado de CU-18 (si existe). 5. Actualiza el incidente. |
-| **Postcondición** | El incidente tiene una clasificación (puede ser "incierto" si no hay suficiente información). |
-| **Excepción** | Texto vacío, modelo no responde. |
+| **Flujo principal** | 1. El backend concatena descripción del conductor + transcripción de audio. 2. Aplica `classify_text()` (keywords): busca "bateria/no arranca"→`BATERIA`, "llanta/pinchazo"→`LLANTA`, "choque/colision"→`CHOQUE`, "motor/humo"→`MOTOR`. 3. Calcula confianza: `0.6 + 0.1*hits` (máx 0.95). 4. Fusiona con resultado de CU-18 vía `fuse()`: si ambos coinciden → mayor confianza; si no → toma el de mayor confianza. 5. Si confianza < 0.5, clasifica como `OTROS` y marca incierta. 6. Actualiza el incidente. |
+| **Postcondición** | El incidente tiene una clasificación combinada (puede ser "incierto" si no hay suficiente información). |
+| **Excepción** | Texto vacío → usa solo resultado de imagen; modelo no responde → fallback a keywords. |
+| **Servicio** | `app/services/ai.py:classify_text()` + `fuse()`. |
 
 #### CU-20. Generar Resumen Estructurado del Incidente
 
@@ -246,21 +251,23 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Actores** | SIA |
 | **Actor iniciador** | Sistema (después de CU-18 y CU-19) |
 | **Precondición** | El incidente tiene al menos clasificación y ubicación. |
-| **Flujo principal** | 1. El backend recopila los datos: ubicación, tipo de incidente, transcripción, vehículo. 2. Genera un texto con plantilla: "Incidente tipo [X] reportado en [dirección]. Descripción: [transcripción]." 3. Almacena el resumen en el incidente. 4. Se muestra al taller en la solicitud. |
+| **Flujo principal** | 1. El backend ejecuta `summarize()` en `app/services/ai.py`. 2. Genera plantilla: `"Incidente reportado en [dirección]. [transcripción o descripción o 'Sin descripción adicional.']"`. 3. Almacena el resumen en el campo `resumen_ia` del incidente. 4. Se muestra al taller en la bandeja de solicitudes. |
 | **Postcondición** | El incidente cuenta con un resumen listo para ser visualizado. |
-| **Excepción** | Datos insuficientes para generar resumen. |
+| **Excepción** | Datos insuficientes → genera texto genérico con ubicación GPS. |
+| **Servicio** | `app/services/ai.py:summarize()`. |
 
 #### CU-21. Determinar Prioridad del Incidente
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Asignar un nivel de prioridad (alta, media, baja, incierta) basado en el tipo de incidente, la urgencia del audio y la ubicación. |
+| **Propósito** | Asignar un nivel de prioridad (ALTA, MEDIA, BAJA) basado en el tipo de incidente, el texto del conductor y palabras de emergencia. |
 | **Actores** | SIA |
 | **Actor iniciador** | Sistema (automático al clasificar) |
-| **Precondición** | CU-18 o CU-19 completados. |
-| **Flujo principal** | 1. El sistema evalúa reglas: choque → alta; batería → media; pinchazo → media; motor → alta; otros → baja. 2. Si el conductor menciona palabras como "emergencia", "peligro", se incrementa la prioridad. 3. Si la ubicación es en carretera de alta velocidad, prioridad alta. 4. Asigna prioridad y la almacena. |
-| **Postcondición** | El incidente tiene un campo prioridad. |
-| **Excepción** | Clasificación incierta → prioridad baja y se solicita aclaración. |
+| **Precondición** | CU-18 o CU-19 completados (codigo disponible). |
+| **Flujo principal** | 1. El sistema evalúa reglas base en `priority_for()`: `CHOQUE/MOTOR`→`ALTA`, `BATERIA/LLANTA`→`MEDIA`, otros→`BAJA`. 2. Si el texto contiene palabras críticas ("emergencia", "peligro", "humo", "fuego", "herido") → fuerza `ALTA`. 3. Asigna prioridad y la almacena en el campo `prioridad` del incidente. |
+| **Postcondición** | El incidente tiene un campo prioridad (ALTA/MEDIA/BAJA). |
+| **Excepción** | Clasificación incierta → prioridad `BAJA` por defecto. |
+| **Servicio** | `app/services/ai.py:priority_for()`. |
 
 ---
 
@@ -302,16 +309,16 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Postcondición** | El taller es notificado. |
 | **Excepción** | Taller no conectado (se guarda para reintentar), error en servicio de push. |
 
-#### CU-25. Aceptar Solicitud (Taller)
+#### CU-25. Aceptar Solicitud con Oferta Editable (Taller)
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | El taller acepta la emergencia asignada, comprometiéndose a enviar un técnico. |
+| **Propósito** | El taller responde a la solicitud generando una oferta editable para competir por precio, tiempo y calidad antes de que el cliente elija. |
 | **Actores** | TAL |
 | **Actor iniciador** | Taller autenticado |
 | **Precondición** | CU-24 completado (notificación recibida) y el incidente está en estado "taller asignado". |
-| **Flujo principal** | 1. Taller visualiza la solicitud pendiente en su bandeja. 2. Hace clic en "Aceptar". 3. El sistema cambia el estado del incidente a "en camino". 4. Registra el tiempo de aceptación. 5. Notifica al cliente mediante push (CU-35). 6. El taller asigna un técnico (automático o manual). |
-| **Postcondición** | El incidente pasa a estado "en camino". |
+| **Flujo principal** | 1. Taller visualiza la solicitud pendiente en su bandeja. 2. El sistema muestra precio sugerido, distancia, dificultad y tiempo estimado. 3. El taller puede subir o bajar el precio sugerido, ajustar el tiempo, asignar técnico y escribir comentario. 4. El backend valida precio/tiempo positivos y crea una cotización pendiente. 5. Se notifica al cliente que hay una nueva oferta disponible. 6. El incidente permanece asignado hasta que el cliente elija una oferta (CU-29). |
+| **Postcondición** | Queda registrada una oferta/cotización pendiente asociada a la asignación. |
 | **Excepción** | El taller ya no tiene disponibilidad (cambio de último minuto) → se notifica al sistema para reasignar. |
 
 #### CU-26. Rechazar Solicitud (con motivo opcional)
@@ -326,40 +333,40 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Postcondición** | La solicitud queda libre para reasignación. |
 | **Excepción** | No hay más talleres candidatos → el incidente se marca como "no atendido" y se notifica al cliente. |
 
-#### CU-27. Solicitar Cotización del Daño
+#### CU-27. Generar Oferta/Cotización Competitiva
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Calcular un costo estimado de reparación basado en el tipo de incidente, imágenes y las tarifas del taller asignado. |
+| **Propósito** | Calcular un precio sugerido automático y permitir que cada taller envíe su precio final ofertado, menor o mayor al sugerido. |
 | **Actores** | CLI, TAL, SIA |
 | **Actor iniciador** | Conductor o taller (según flujo) |
 | **Precondición** | Incidente clasificado y taller asignado. |
-| **Flujo principal** | 1. El sistema envía la información del incidente al taller (o a IA). 2. El taller (o IA) genera una cotización en base a tarifas predefinidas (ej. cambio de batería: $50, reparación de choque leve: $200). 3. La cotización se muestra al conductor en la app. 4. El conductor puede aceptar o rechazar la cotización. |
-| **Postcondición** | Se almacena la cotización asociada al incidente. |
+| **Flujo principal** | 1. El motor calcula precio sugerido con: costo base por tipo, factor de dificultad, distancia, prioridad y calificación del taller. 2. El taller ve el precio sugerido y puede modificarlo libremente para competir. 3. El taller envía precio final, tiempo estimado y comentario. 4. El sistema guarda la cotización con estado `PENDIENTE`. 5. La app del cliente lista todas las ofertas recibidas con precio, tiempo, distancia y calificación. |
+| **Postcondición** | Existen una o más ofertas comparables para que el cliente elija. |
 | **Excepción** | El taller no responde dentro de un tiempo límite (se asigna cotización automática por IA). |
 
-#### CU-28. Calcular Tiempo Estimado de Reparación
+#### CU-28. Calcular Tiempo Estimado de Llegada y Reparación
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Predecir cuánto tiempo tomará reparar el vehículo, basado en el tipo de daño y la carga de trabajo del taller. |
+| **Propósito** | Estimar cuánto tardará el taller en llegar y completar la reparación, usando distancia, dificultad, tipo de incidente y carga del taller. |
 | **Actores** | SIA, TAL |
 | **Actor iniciador** | Sistema (al asignar taller o al aceptar solicitud) |
 | **Precondición** | Incidente clasificado y taller asignado. |
-| **Flujo principal** | 1. El sistema consulta el tiempo histórico promedio para ese tipo de incidente (ej. batería: 20 min, choque: 90 min). 2. Ajusta según la carga actual del taller (número de servicios en cola). 3. Muestra el tiempo estimado al conductor. 4. El taller puede modificar manualmente el tiempo si es necesario. |
-| **Postcondición** | Se registra un campo tiempo_estimado_reparacion. |
+| **Flujo principal** | 1. El sistema calcula tiempo de llegada: distancia / velocidad promedio + buffer operativo. 2. Calcula reparación base por tipo: batería, llanta, motor, choque u otros. 3. Ajusta por dificultad (baja/media/alta) y carga del taller. 4. El taller puede modificar el tiempo antes de enviar su oferta. 5. El cliente ve tiempo total estimado para comparar ofertas. |
+| **Postcondición** | La oferta contiene tiempo de llegada, reparación y tiempo total estimado. |
 | **Excepción** | No hay datos históricos → se usa valor por defecto (60 min). |
 
-#### CU-29. Seleccionar Taller de entre los Candidatos (Cliente)
+#### CU-29. Seleccionar Oferta de Taller (Cliente tipo Uber/InDrive)
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Permitir al conductor elegir manualmente qué taller atenderá su emergencia, en lugar de la asignación automática. |
+| **Propósito** | Permitir que el conductor elija la mejor oferta disponible comparando precio, tiempo, distancia y calidad, similar a Uber/InDrive. |
 | **Actores** | CLI |
 | **Actor iniciador** | Conductor autenticado |
 | **Precondición** | CU-22 completado (lista de candidatos mostrada). |
-| **Flujo principal** | 1. El conductor recibe una lista de talleres cercanos con sus datos (distancia, tiempo estimado, calificación). 2. Selecciona uno y confirma. 3. El sistema asigna el incidente al taller elegido (estado "taller asignado"). 4. Notifica al taller. |
-| **Postcondición** | El taller queda asignado por decisión del cliente. |
+| **Flujo principal** | 1. El conductor recibe ofertas de talleres que aceptaron competir. 2. Cada oferta muestra precio final, precio sugerido, tiempo estimado, distancia, calificación y comentario. 3. El conductor selecciona una oferta. 4. El sistema marca esa cotización como `ACEPTADA`, rechaza las demás y cambia la asignación elegida a `ACEPTADO`. 5. El incidente pasa a `EN_CAMINO` y se notifica al taller elegido. |
+| **Postcondición** | Solo una oferta queda aceptada y el técnico/taller elegido inicia la atención. |
 | **Excepción** | El taller seleccionado no está disponible en ese momento → se informa al conductor y vuelve a la lista. |
 
 #### CU-30. Efectuar Pago del Servicio (Pasarela)
@@ -397,6 +404,18 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. El sistema genera un PDF con los datos del servicio, montos, comisiones, fechas. 2. El usuario puede descargar o recibir por correo electrónico. 3. Se almacena una referencia en la base de datos. |
 | **Postcondición** | El comprobante está disponible. |
 | **Excepción** | Error al generar PDF. |
+
+#### CU-49. Calificar Servicio Post-Atención
+
+| Campo | Descripción |
+|-------|-------------|
+| **Propósito** | Permitir al conductor calificar la calidad del servicio recibido (1 a 5 estrellas) y dejar un comentario opcional para retroalimentación del taller. |
+| **Actores** | CLI |
+| **Actor iniciador** | Conductor autenticado (al finalizar el servicio) |
+| **Precondición** | Incidente en estado "finalizado" y pago completado (CU-30). |
+| **Flujo principal** | 1. El sistema envía notificación al conductor invitándolo a calificar. 2. Conductor accede al detalle del incidente finalizado. 3. Selecciona una calificación de 1 a 5 estrellas. 4. Opcionalmente escribe un comentario (máx. 500 caracteres). 5. El sistema almacena la calificación asociada al incidente y al taller. 6. Se actualiza el promedio de calificación del taller. |
+| **Postcondición** | La calificación queda registrada y el promedio del taller se actualiza. |
+| **Excepción** | El conductor ya calificó previamente (no se permite doble calificación), incidente no está finalizado. |
 
 ---
 
@@ -455,7 +474,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | Campo | Descripción |
 |-------|-------------|
 | **Propósito** | Notificar al conductor que el técnico ha llegado al lugar del incidente. |
-| **Actores** | SIA (o taller) |
+| **Actores** | TAL |
 | **Actor iniciador** | Taller (al marcar "llegué") o sistema mediante geocerca (detección automática). |
 | **Precondición** | Estado actual "en camino" y la ubicación del técnico coincide con la del incidente (radio < 50m). |
 | **Flujo principal** | 1. El taller presiona "Llegué" en su app (o el sistema detecta cercanía). 2. El backend cambia el estado a "en atención". 3. Se envía notificación push al conductor: "El técnico ha llegado". 4. Opcionalmente se inicia un contador de tiempo de atención. |
@@ -466,29 +485,19 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 
 ### Ciclo #5 – Offline, KPIs y multi‑tenant (Segundo Parcial)
 
-#### CU-38. Guardar Emergencia Localmente (modo offline)
+#### CU-38. Guardar Emergencia Localmente y Marcar como Pendiente de Sincronización (modo offline)
 
 | Campo | Descripción |
 |-------|-------------|
-| **Propósito** | Almacenar en el dispositivo móvil (SQLite) los datos de una emergencia cuando no hay conexión a internet, para sincronizarla posteriormente. |
+| **Propósito** | Almacenar en el dispositivo móvil (SQLite) los datos de una emergencia cuando no hay conexión a internet, etiquetándola visualmente como pendiente de sincronización. |
 | **Actores** | CLI |
 | **Actor iniciador** | Conductor (al intentar reportar emergencia sin conexión) |
 | **Precondición** | No hay conexión a internet (detectada por el sistema). |
-| **Flujo principal** | 1. Conductor completa el formulario de emergencia (CU-10). 2. Al enviar, el sistema detecta ausencia de red. 3. Guarda la emergencia en la base de datos local con estado `sync_pendiente = true` y `id_local` único. 4. Muestra un mensaje: "Emergencia guardada localmente. Se sincronizará automáticamente cuando haya conexión". 5. La emergencia aparece en la lista como "pendiente de sincronización". |
-| **Postcondición** | La emergencia se persiste localmente. |
+| **Flujo principal** | 1. Conductor completa el formulario de emergencia (CU-10). 2. Al enviar, el sistema detecta ausencia de red. 3. Guarda la emergencia en la base de datos local con estado `sync_pendiente = true` y `id_local` único. 4. Asigna un flag `pendiente = true` y muestra la emergencia con un ícono de reloj/sincronización en la interfaz. 5. Muestra un mensaje: "Emergencia guardada localmente. Se sincronizará automáticamente cuando haya conexión". 6. El conductor puede ver el detalle, pero no puede modificar hasta sincronizar. |
+| **Postcondición** | La emergencia se persiste localmente y queda visualmente identificada como pendiente de sincronización. |
 | **Excepción** | Error al escribir en SQLite (falta de espacio). |
 
-#### CU-39. Marcar Emergencia como Pendiente de Sincronización
-
-| Campo | Descripción |
-|-------|-------------|
-| **Propósito** | Etiquetar visualmente aquellas emergencias que aún no han sido enviadas al servidor. |
-| **Actores** | CLI |
-| **Actor iniciador** | Sistema (automático al guardar localmente) |
-| **Precondición** | CU-38 ejecutado. |
-| **Flujo principal** | 1. El sistema asigna un flag `pendiente` = true. 2. En la interfaz, la emergencia se muestra con un ícono de reloj o sincronización. 3. El conductor puede ver el detalle, pero no puede modificar hasta sincronizar. |
-| **Postcondición** | El conductor es consciente del estado pendiente. |
-| **Excepción** | No aplica. |
+> **Nota:** CU-39 fue fusionado con CU-38 por ser parte de la misma acción (el marcado de pendencia ocurre automáticamente al guardar localmente).
 
 #### CU-40. Sincronizar Automáticamente al Recuperar Conexión
 
@@ -507,7 +516,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | Campo | Descripción |
 |-------|-------------|
 | **Propósito** | Evitar que una misma emergencia se duplique en el servidor debido a reintentos o a múltiples dispositivos. |
-| **Actores** | SIA |
+| **Actores** | Sistema |
 | **Actor iniciador** | Backend al recibir una solicitud de sincronización |
 | **Precondición** | Se recibe un objeto con `id_local` y datos. |
 | **Flujo principal** | 1. El backend verifica si ya existe un incidente con el mismo `id_local` (en una tabla de mapeo). 2. Si existe, retorna el ID existente sin crear duplicado. 3. Si no existe, crea un nuevo incidente y almacena la relación `id_local` ↔ `id_servidor`. 4. En caso de conflictos de datos (ej. mismo incidente modificado offline dos veces), se aplica la regla "última escritura gana" (timestamp más reciente). |

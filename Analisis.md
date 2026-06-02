@@ -28,8 +28,8 @@ Perfecto. Rehago la sección **2.2 FLUJO DE TRABAJO – ANÁLISIS** con un enfoq
 | Clientes y vehículos | CU-04, CU-05, CU-06, CU-07, CU-08, CU-09 |
 | Incidentes y evidencias | CU-10, CU-11, CU-12, CU-13, CU-14, CU-15, CU-16 |
 | Procesamiento inteligente y asignación | CU-17, CU-18, CU-19, CU-20, CU-21, CU-22, CU-23, CU-24, CU-25, CU-26, CU-27, CU-28, CU-29 |
-| Pagos, notificaciones y repartos | CU-30, CU-31, CU-32, CU-33, CU-34, CU-35, CU-36, CU-37 |
-| Offline y sincronización | CU-38, CU-39, CU-40, CU-41 |
+| Pagos, notificaciones y repartos | CU-30, CU-31, CU-32, CU-33, CU-34, CU-35, CU-36, CU-37, CU-49 |
+| Offline y sincronización | CU-38, CU-40, CU-41 |
 | Analítica y KPIs | CU-42, CU-43, CU-44, CU-45 |
 | Multi‑tenant | CU-46, CU-47, CU-48 |
 
@@ -134,7 +134,38 @@ Se muestran solo los casos de uso más importantes del sistema, con interaccione
 
 ---
 
-#### 2.2.2.2 Análisis de Paquete
+#### 2.2.2.2 Relaciones `<<include>>` y `<<extend>>` (Diagrama General de Casos de Uso)
+
+Las siguientes relaciones aplican al diagrama general de casos de uso por ciclo. No se incluyen en diagramas individuales.
+
+**Relaciones `<<include>>`** (el caso de uso base siempre incluye al otro):
+
+| Caso de uso base | Incluye a | Razón |
+|-----------------|-----------|-------|
+| CU-10 (Reportar Emergencia) | CU-11 (Adjuntar Imágenes) | El reporte siempre puede incluir fotos |
+| CU-10 (Reportar Emergencia) | CU-12 (Adjuntar Audio) | El reporte siempre puede incluir audio |
+| CU-10 (Reportar Emergencia) | CU-13 (Enviar Ubicación GPS) | El reporte siempre obtiene ubicación |
+| CU-10 (Reportar Emergencia) | CU-17 (Transcribir Audio) | Al enviar audio, se transcribe automáticamente |
+| CU-10 (Reportar Emergencia) | CU-18 (Clasificar por Imágenes) | Al enviar fotos, se clasifican automáticamente |
+| CU-10 (Reportar Emergencia) | CU-19 (Clasificar por Texto) | Se clasifica el texto/transcripción |
+| CU-10 (Reportar Emergencia) | CU-20 (Generar Resumen) | Se genera resumen tras clasificar |
+| CU-10 (Reportar Emergencia) | CU-21 (Determinar Prioridad) | Se prioriza tras clasificar |
+| CU-23 (Asignar Taller Óptimo) | CU-22 (Buscar Talleres Candidatos) | Necesita candidatos antes de asignar |
+| CU-23 (Asignar Taller Óptimo) | CU-24 (Notificar a Taller) | Siempre notifica al asignar |
+| CU-35 (Notificación de Cambio de Estado) | CU-36 (Actualizar Estado) | Toda notificación se dispara al actualizar estado |
+| CU-40 (Sincronizar Automáticamente) | CU-38 (Guardar Localmente) | Solo sincroniza lo que se guardó localmente |
+
+**Relaciones `<<extend>>`** (el caso de uso extensión ocurre opcionalmente):
+
+| Caso de uso extendido | Extensión | Condición |
+|----------------------|-----------|-----------|
+| CU-14 (Visualizar Estado) | CU-15 (Cancelar Emergencia) | Solo si el estado es "pendiente" |
+| CU-23 (Asignar Taller Óptimo) | CU-26 (Rechazar Solicitud) | Si el taller rechaza, se reasigna |
+| CU-29 (Seleccionar Taller) | CU-23 (Asignar Taller Óptimo) | Si el cliente no elige, el sistema asigna automáticamente |
+
+---
+
+#### 2.2.2.3 Análisis de Paquete
 
 Relaciones simples entre paquetes (solo “usa” o “depende de” implícito, sin descripciones largas). Se muestra como en la imagen enviada:
 

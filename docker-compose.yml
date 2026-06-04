@@ -34,6 +34,21 @@ services:
         echo "Floci resources ready."
     restart: "no"
 
+  osrm:
+    image: osrm/osrm-backend:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./osrm-data:/data
+    command: >
+      sh -c "if [ -f /data/map.osrm ]; then
+        osrm-routed --algorithm mld /data/map.osrm --max-table-size 10000 --thread 4;
+      else
+        echo 'OSRM map not found at /data/map.osrm - using fake routing fallback';
+        sleep infinity;
+      fi"
+    restart: unless-stopped
+
   db:
     image: postgres:16
     environment:

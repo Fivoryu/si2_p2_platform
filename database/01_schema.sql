@@ -518,6 +518,7 @@ CREATE TABLE ubicacion_tracking (
     tecnico_id          UUID REFERENCES tecnico(id) ON DELETE SET NULL,
     latitud             NUMERIC(9,6) NOT NULL CHECK (latitud  BETWEEN -90  AND 90),
     longitud            NUMERIC(9,6) NOT NULL CHECK (longitud BETWEEN -180 AND 180),
+    es_fake             BOOLEAN NOT NULL DEFAULT FALSE,
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 

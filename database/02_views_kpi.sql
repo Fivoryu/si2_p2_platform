@@ -176,12 +176,12 @@ CREATE OR REPLACE FUNCTION emergencias.refrescar_kpis()
 RETURNS void AS $$
 BEGIN
     -- CONCURRENTLY donde hay índice único (no bloquea lecturas).
-    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_kpi_resumen_tenant;
-    REFRESH MATERIALIZED VIEW mv_kpi_incidentes_por_tipo;
-    REFRESH MATERIALIZED VIEW mv_kpi_talleres_eficientes;
-    REFRESH MATERIALIZED VIEW mv_kpi_zonas;
-    REFRESH MATERIALIZED VIEW mv_kpi_sla;
-    REFRESH MATERIALIZED VIEW mv_kpi_comisiones;
+    REFRESH MATERIALIZED VIEW CONCURRENTLY emergencias.mv_kpi_resumen_tenant;
+    REFRESH MATERIALIZED VIEW emergencias.mv_kpi_incidentes_por_tipo;
+    REFRESH MATERIALIZED VIEW emergencias.mv_kpi_talleres_eficientes;
+    REFRESH MATERIALIZED VIEW emergencias.mv_kpi_zonas;
+    REFRESH MATERIALIZED VIEW emergencias.mv_kpi_sla;
+    REFRESH MATERIALIZED VIEW emergencias.mv_kpi_comisiones;
 END;
 $$ LANGUAGE plpgsql;
 

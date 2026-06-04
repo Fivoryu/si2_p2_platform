@@ -201,9 +201,106 @@ Analítica y KPIs
 - Procesamiento inteligente y asignación → Pagos, notificaciones y repartos  
 - Pagos, notificaciones y repartos → Offline y sincronización  
 - Todos los paquetes → Multi‑tenant  
-- Analítica y KPIs ← Incidentes y evidencias  
-- Analítica y KPIs ← Talleres y atención del servicio  
-- Analítica y KPIs ← Pagos, notificaciones y repartos  
+- Analítica y KPIs ← Incidentes y evidencias
+- Analítica y KPIs ← Talleres y atención del servicio
+- Analítica y KPIs ← Pagos, notificaciones y repartos
+
+---
+
+### 2.2.3 Análisis Adicional – Ciclo #5 (Offline, KPIs, Multi‑tenant)
+
+#### 2.2.3.1 Diagramas de Colaboración Específicos
+
+**CU-38/40. Guardar y Sincronizar Emergencia Offline**
+
+```
+1: GuardarLocal() →
+   Conductor → PantallaEmergencia
+1.1: insertPending(row) →
+   PantallaEmergencia → RepositorioLocal (SQLite)
+1.2: onConnectivityChanged() →
+   Sistema → DetectorConectividad (connectivity_plus)
+1.3: syncNow() →
+   DetectorConectividad → ControladorSync (sync_service.dart)
+1.4: POST /sync {incidentes:[...]} →
+   ControladorSync → BackendSync (sync.py)
+1.5: Verificar external_id →
+   BackendSync → sync_mapping (DB)
+1.6: [nuevo] INSERT incidente + INSERT sync_mapping →
+   BackendSync → BaseDatos
+1.7: [existente] UPDATE incidente (last-write-wins) →
+   BackendSync → BaseDatos
+1.8: markSynced(idLocal, idServidor) →
+   BackendSync → ControladorSync → RepositorioLocal
+```
+
+**CU-42/43. Dashboard KPIs con Filtro Multi‑tenant**
+
+```
+1: SolicitarKPIs(?tenant_id=) →
+   Administrador → PanelWeb (kpis.component.ts)
+1.1: GET /kpis/resumen?tenant_id= →
+   PanelWeb → ControladorKPI (kpi.py)
+1.2: _tenant_filter(user, tenant_id) →
+   ControladorKPI → MiddlewareAuth (deps.py)
+1.3: [ADT] forzar user.tenant; [ADM] aceptar ?tenant_id= →
+   MiddlewareAuth → ControladorKPI
+1.4: SELECT * FROM mv_kpi_resumen_tenant WHERE tenant_id = :tid →
+   ControladorKPI → VistaMaterializada (02_views_kpi.sql)
+1.5: Renderizar gráficos ECharts + cards →
+   ControladorKPI → PanelWeb
+```
+
+**CU-46. Crear Tenant (secuencia multi‑tenant)**
+
+```
+1: CrearTenant(nombre, dominio, plan_id) →
+   ADM → PanelAdmin (tenants.component.ts)
+1.1: POST /tenants {nombre, dominio, plan_id} →
+   PanelAdmin → ControladorTenant (tenants.py)
+1.2: require_roles("ADMIN_PLATAFORMA") →
+   ControladorTenant → MiddlewareAuth
+1.3: INSERT INTO emergencias.tenant (...) →
+   ControladorTenant → BaseDatos (BYPASSRLS)
+1.4: [opcional] POST /tenants/{id}/admin →
+   PanelAdmin → ControladorTenant
+1.5: INSERT usuario (rol=ADMIN_TENANT, tenant_id=...) →
+   ControladorTenant → BaseDatos
+```
+
+#### 2.2.3.2 Relaciones `<<include>>` y `<<extend>>` – Ciclo 5
+
+**Relaciones `<<include>>`:**
+
+| Caso de uso base | Incluye a | Razón |
+|-----------------|-----------|-------|
+| CU-40 (Sincronizar Automáticamente) | CU-38 (Guardar Localmente) | Solo sincroniza incidentes previamente guardados en local |
+| CU-42 (Dashboard KPIs) | CU-43 (Filtrar por Tenant) | Todo dashboard aplica filtro de tenant automáticamente |
+| CU-45 (Configurar SLA) | CU-42 (Dashboard KPIs) | Los umbrales de SLA alimentan el KPI de cumplimiento |
+| CU-46 (Crear Tenant) | CU-48 (Configurar Plan) | Al crear tenant se asigna un plan obligatoriamente |
+
+**Relaciones `<<extend>>`:**
+
+| Caso de uso extendido | Extensión | Condición |
+|----------------------|-----------|-----------|
+| CU-40 (Sincronizar) | CU-41 (Resolver Conflictos) | Si el backend encuentra un `external_id` ya existente |
+| CU-42 (Dashboard KPIs) | CU-44 (Exportar Reporte) | Si el administrador solicita descarga CSV |
+| CU-46 (Crear Tenant) | CU-47 (Asignar Admin) | Opcionalmente se asigna admin inmediatamente |
+
+#### 2.2.3.3 Trazabilidad Ciclo 5 – CU a Componentes
+
+| CU | Paquete | Tablas DB | API Endpoint | Pantalla Móvil | Pantalla Web |
+|----|---------|-----------|-------------|----------------|-------------|
+| CU-38 | Offline / Sync | `incidente_local` (SQLite), `incidente.external_id` | `POST /sync` | `new_incident_screen.dart`, `local_db.dart` | — |
+| CU-40 | Offline / Sync | `sync_mapping`, `incidente` | `POST /sync` | `sync_service.dart`, `history_screen.dart` | — |
+| CU-41 | Offline / Sync | `sync_mapping (UNIQUE)` | `POST /sync` (idempotente) | `sync_service.dart` | — |
+| CU-42 | KPIs | `mv_kpi_resumen_tenant`, `mv_kpi_incidentes_por_tipo`, `mv_kpi_talleres_eficientes`, `mv_kpi_zonas` | `GET /kpis/resumen`, `/kpis/por-tipo`, `/kpis/talleres`, `/kpis/zonas` | — | `kpis.component.ts` |
+| CU-43 | KPIs / Multi‑tenant | `mv_kpi_*` (todas con `tenant_id`) | `GET /kpis/*?tenant_id=` | — | `kpis.component.ts` (selector tenant) |
+| CU-44 | KPIs | `mv_kpi_*` | — (frontend CSV) | — | `kpis.component.ts` (`exportCsv()`) |
+| CU-45 | KPIs | `sla_config` | `GET/POST /sla`, `PATCH /sla/{id}` | — | `sla.component.ts` |
+| CU-46 | Multi‑tenant | `tenant`, `plan` | `POST /tenants`, `GET /tenants` | — | `tenants.component.ts` |
+| CU-47 | Multi‑tenant | `usuario` | `POST /tenants/{id}/admin` | — | `tenants.component.ts` |
+| CU-48 | Multi‑tenant | `tenant.plan_id` | `PATCH /tenants/{id}/plan` | — | `tenants.component.ts` |
 
 ---
 

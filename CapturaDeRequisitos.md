@@ -248,6 +248,37 @@ Todo el contenido es **escalable** y listo para ser modelado en UML.
 
 ---
 
+---
+
+## 2.1.4 Trazabilidad Ciclo #5 – Offline, KPIs y Multi‑tenant
+
+| CU | Funcionalidad | Tabla(s) DB | Endpoint API | Pantalla/Componente | Prueba de aceptación |
+|----|--------------|-------------|-------------|---------------------|---------------------|
+| CU-38 | Guardar emergencia localmente (offline) | `incidente_local` (SQLite), `incidente.external_id` | `POST /sync` | `new_incident_screen.dart`, `local_db.dart` | Modo avión → crear emergencia → queda icono reloj en historial |
+| CU-40 | Sincronizar automáticamente al recuperar conexión | `sync_mapping`, `incidente` | `POST /sync` | `sync_service.dart`, `history_screen.dart` | Activar red → emergencias pasan a SINCRONIZADO; POST mismo batch 2 veces → sin duplicados |
+| CU-41 | Resolver conflictos de sincronización | `sync_mapping (UNIQUE tenant_id, external_id)` | `POST /sync` (last-write-wins) | `sync.py:_sync_incident()` | Reenviar batch → status DUPLICATE/UPDATED, count unchanged |
+| CU-42 | Dashboard KPIs | `mv_kpi_resumen_tenant`, `mv_kpi_incidentes_por_tipo`, `mv_kpi_talleres_eficientes`, `mv_kpi_zonas` | `GET /kpis/resumen`, `/kpis/por-tipo`, `/kpis/talleres`, `/kpis/zonas` | `kpis.component.ts` (ECharts: bar, number cards, table) | Admin tenant ve KPIs de su tenant; admin plataforma ve selector tenant |
+| CU-43 | Filtrar KPIs por tenant | `mv_kpi_*` (todas con `tenant_id`) | `GET /kpis/*?tenant_id=` (ADM), filtro forzado (ADT) | `kpis.component.ts` (mat-select tenant) | ADT no ve dropdown tenant y sus datos son solo los suyos; ADM cambia tenant → gráficos se actualizan |
+| CU-44 | Exportar reporte KPIs | vistas `mv_kpi_*` | — (frontend genera CSV) | `kpis.component.ts` (`exportCsv()`) | Click "Exportar CSV" → descarga archivo con datos filtrados |
+| CU-45 | Configurar umbrales SLA | `sla_config` | `GET/POST /sla`, `PATCH /sla/{id}` | `sla.component.ts` (form + tabla editable) | ADM crea SLA, edita tiempo máx.; KPIs reflejan % cumplimiento nuevo |
+| CU-46 | Crear nuevo tenant | `tenant`, `plan` | `POST /tenants`, `GET /tenants`, `GET /tenants/planes` | `tenants.component.ts` (pestaña "Crear tenant") | ADM crea tenant con plan; aparece en listado y dropdown de KPIs |
+| CU-47 | Asignar administrador a tenant | `usuario (rol=ADMIN_TENANT)` | `POST /tenants/{id}/admin` | `tenants.component.ts` (pestaña "Asignar admin") | Nuevo admin puede iniciar sesión y gestionar el tenant |
+| CU-48 | Configurar plan de servicio | `tenant.plan_id`, `plan` | `PATCH /tenants/{id}/plan` | `tenants.component.ts` (pestaña "Cambiar plan") | Cambio de plan persiste; límites de plan se aplican en creación de talleres/técnicos |
+
+### Ciclo #5 – Checklist de verificación
+
+- [ ] **Offline mode (CU-38)**: `mobile/lib/data/local_db.dart` implementa SQLite con columna `estado_sync`. `new_incident_screen.dart` guarda siempre local primero (`LocalDb.insertPending(row)`).
+- [ ] **Sync service (CU-40)**: `mobile/lib/services/sync_service.dart` escucha `connectivity_plus`, envía batch a `POST /sync` con `external_id`. Backend responde `CREATED/DUPLICATE/UPDATED`. Cliente marca `SINCRONIZADO`.
+- [ ] **Idempotencia (CU-41)**: `sync_mapping` tiene `UNIQUE (tenant_id, external_id)`. Reenvío del mismo batch retorna `DUPLICATE/UPDATED`, nunca duplica filas.
+- [ ] **KPIs (CU-42)**: `database/02_views_kpi.sql` tiene 6 vistas materializadas sobre datos reales. `POST /kpis/refresh` las refresca. `kpis.component.ts` renderiza gráficos ECharts.
+- [ ] **Filtro tenant (CU-43)**: `_tenant_filter()` en `kpi.py` fuerza `user.tenant` para ADT, acepta `?tenant_id=` para ADM. `kpis.component.ts` oculta/muestra dropdown según rol.
+- [ ] **Export KPIs (CU-44)**: `exportCsv()` en `kpis.component.ts` construye CSV y descarga con nombre `kpis-talleres-YYYY-MM-DD.csv`.
+- [ ] **SLA config (CU-45)**: `sla_config` CRUD completo en `kpi.py`. `sla.component.ts` permite crear, listar y editar umbrales por tipo.
+- [ ] **Multi-tenant (CU-46..CU-48)**: `tenants.py` crea tenants, asigna admin, cambia plan. `tenants.component.ts` tiene 4 pestañas: listado, crear, asignar admin, cambiar plan.
+- [ ] **RLS**: `01_schema.sql` habilita RLS en 21 tablas de negocio con `pol_*_tenant`. Backend ejecuta `SET app.current_tenant` por request. Admin plataforma usa engine `BYPASSRLS`.
+
+---
+
 ## Próximos pasos
 
 Una vez validada la captura de requisitos, se procederá al **Flujo de Trabajo de Análisis**, donde se desarrollarán:

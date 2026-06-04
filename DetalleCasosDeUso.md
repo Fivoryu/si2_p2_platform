@@ -495,6 +495,8 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Precondición** | No hay conexión a internet (detectada por el sistema). |
 | **Flujo principal** | 1. Conductor completa el formulario de emergencia (CU-10). 2. Al enviar, el sistema detecta ausencia de red. 3. Guarda la emergencia en la base de datos local con estado `sync_pendiente = true` y `id_local` único. 4. Asigna un flag `pendiente = true` y muestra la emergencia con un ícono de reloj/sincronización en la interfaz. 5. Muestra un mensaje: "Emergencia guardada localmente. Se sincronizará automáticamente cuando haya conexión". 6. El conductor puede ver el detalle, pero no puede modificar hasta sincronizar. |
 | **Postcondición** | La emergencia se persiste localmente y queda visualmente identificada como pendiente de sincronización. |
+| **Campo** | **Descripción** |
+| **Criterio de aceptación** | 1. Modo avión activado. 2. Conductor completa formulario de emergencia y envía. 3. La emergencia aparece en el historial con ícono de reloj y etiqueta "pendiente sync". 4. En `incidente_local` (SQLite) existe una fila con `estado_sync = 'PENDIENTE'` y un `id_local` UUID único. 5. Al desconectarse y reconectarse, el mensaje "Guardada localmente" persiste visible. |
 | **Excepción** | Error al escribir en SQLite (falta de espacio). |
 
 > **Nota:** CU-39 fue fusionado con CU-38 por ser parte de la misma acción (el marcado de pendencia ocurre automáticamente al guardar localmente).
@@ -509,7 +511,8 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Precondición** | Existen emergencias con `sync_pendiente = true` y se detecta conexión disponible. |
 | **Flujo principal** | 1. El detector de conectividad del dispositivo (broadcast receiver en Android, `connectivity_plus`) notifica conexión. 2. El servicio de sincronización toma la lista de emergencias locales. 3. Envía cada una al endpoint `/sync` del backend. 4. El backend procesa y devuelve un ID de servidor. 5. La app actualiza el registro local marcando `sync_pendiente = false` y guarda `id_servidor`. 6. Se notifica al conductor que la emergencia fue enviada. |
 | **Postcondición** | Las emergencias pendientes ahora existen en el backend y están sincronizadas. |
-| **Excepción** | Error de conexión durante el envío (se reintenta con backoff exponencial), conflicto de datos. |
+| **Excepción** | Error de conexión durante el envío (se reintenta con backoff exponencial, marcando `estado_sync = 'ERROR'`), conflicto de datos. |
+| **Criterio de aceptación** | 1. Dos emergencias guardadas offline. 2. Activar red. 3. Ambas aparecen en el servidor con `estado_sincronizacion = 'SINCRONIZADO'`. 4. El historial del móvil ya no muestra ícono de reloj. 5. `incidente_local` tiene ambas filas con `estado_sync = 'SINCRONIZADO'` y `id_servidor` poblado. |
 
 #### CU-41. Resolver Conflictos de Sincronización (evitar duplicados)
 
@@ -522,6 +525,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. El backend verifica si ya existe un incidente con el mismo `id_local` (en una tabla de mapeo). 2. Si existe, retorna el ID existente sin crear duplicado. 3. Si no existe, crea un nuevo incidente y almacena la relación `id_local` ↔ `id_servidor`. 4. En caso de conflictos de datos (ej. mismo incidente modificado offline dos veces), se aplica la regla "última escritura gana" (timestamp más reciente). |
 | **Postcondición** | No hay duplicados; el incidente está correctamente referenciado. |
 | **Excepción** | Datos corruptos, violación de integridad. |
+| **Criterio de aceptación** | 1. Enviar mismo batch de sincronización dos veces. 2. Primera respuesta: `status = "CREATED"`. 3. Segunda respuesta: `status = "DUPLICATE"` o `"UPDATED"`. 4. `SELECT COUNT(*) FROM emergencias.incidente` no incrementa con el segundo envío. 5. Si `client_updated_at` del segundo envío es más reciente, los datos se actualizan (last-write-wins). |
 
 #### CU-42. Visualizar Dashboard de KPIs (Administrador)
 
@@ -534,6 +538,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. El administrador accede a la sección "KPIs" en la web. 2. El backend ejecuta consultas agregadas (vistas materializadas o queries optimizadas) para calcular: tiempo promedio de asignación, tiempo promedio de llegada, incidentes por tipo, talleres más eficientes, etc. 3. Los resultados se envían al frontend en formato JSON. 4. Se renderizan gráficos (barras, líneas, mapas de calor). 5. El administrador puede filtrar por rango de fechas. |
 | **Postcondición** | Los KPIs se muestran correctamente. |
 | **Excepción** | No hay datos suficientes (se muestran ceros), error de conexión a BD. |
+| **Criterio de aceptación** | 1. Login como `ana@auxilionorte.com` (ADT). 2. Navegar a `/kpis`. 3. Ver cards con valores reales (no ceros). 4. Gráfico de barras "Incidentes por tipo" renderiza. 5. Gráfico "Cumplimiento SLA" renderiza. 6. Tabla "Talleres más eficientes" muestra filas. 7. Botón "Refrescar" ejecuta `POST /kpis/refresh` y actualiza datos. |
 
 #### CU-43. Filtrar KPIs por Tenant
 
@@ -546,6 +551,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. El administrador de plataforma selecciona un tenant de un dropdown. 2. El backend añade `WHERE tenant_id = :id` a todas las consultas de KPIs. 3. Para un ADT, el filtro es forzado automáticamente (no puede cambiarlo). 4. Se actualizan los gráficos con los datos del tenant seleccionado. |
 | **Postcondición** | Los KPIs reflejan únicamente el tenant elegido. |
 | **Excepción** | Tenant no existe o no tiene datos. |
+| **Criterio de aceptación** | 1. Login como `ana@auxilionorte.com` (ADT Auxilio Norte). 2. No ve dropdown de tenant en pantalla KPIs. 3. Datos mostrados = solo Auxilio Norte. 4. Login como `admin@plataforma.com` (ADM). 5. Ve dropdown con "Auxilio Norte" y "RutaSegura". 6. Selecciona "RutaSegura" → gráficos cambian a datos de RutaSegura. 7. `SELECT * FROM emergencias.mv_kpi_resumen_tenant` muestra filas separadas por tenant que coinciden con lo que ve cada admin. |
 
 #### CU-44. Exportar Reporte de KPIs (PDF/CSV)
 
@@ -558,6 +564,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. El administrador hace clic en "Exportar". 2. Elige formato (PDF o CSV). 3. El sistema genera el archivo con los datos filtrados actualmente. 4. Se inicia la descarga. |
 | **Postcondición** | El usuario obtiene el archivo. |
 | **Excepción** | Error al generar archivo, demasiados datos (timeout). |
+| **Criterio de aceptación** | 1. En pantalla KPIs, hacer clic en "Exportar CSV". 2. Se descarga archivo `kpis-talleres-YYYY-MM-DD.csv`. 3. El archivo contiene columnas: Taller, Atendidos, Prom. respuesta (min). 4. Los datos coinciden con la tabla visible en pantalla. |
 
 #### CU-45. Configurar Umbrales de SLA (Acuerdo de Nivel de Servicio)
 
@@ -570,6 +577,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. Administrador accede a "Configuración SLA". 2. Por cada tipo de incidente, ingresa un tiempo límite (en minutos). 3. Guarda la configuración. 4. El sistema almacena en tabla `sla_config` (por tenant). 5. El cálculo de cumplimiento de SLA (KPI) usa estos umbrales. |
 | **Postcondición** | Los nuevos umbrales se aplican en los siguientes cálculos. |
 | **Excepción** | Valores no numéricos o negativos. |
+| **Criterio de aceptación** | 1. Login como `admin@plataforma.com`. 2. Navegar a `/sla`. 3. Ver tabla con SLA existentes (del seed). 4. Crear nuevo SLA con tipo y tiempo máximo. 5. Editar tiempo máximo de un SLA existente → guardar. 6. Refrescar KPIs → gráfico "Cumplimiento SLA" refleja nuevo umbral. 7. `SELECT * FROM emergencias.sla_config` confirma cambios. |
 
 #### CU-46. Crear Nuevo Tenant
 
@@ -582,6 +590,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. Administrador accede a "Tenants" → "Crear". 2. Ingresa nombre de la organización, dominio, plan (básico, premium). 3. Asigna un administrador de tenant (correo electrónico). 4. El sistema crea una entrada en la tabla `tenant`. 5. Se genera un schema lógico (no físico) mediante `tenant_id`. 6. Se envía invitación al administrador de tenant. |
 | **Postcondición** | Nuevo tenant disponible; los datos futuros se aislarán con ese ID. |
 | **Excepción** | Nombre duplicado, error de base de datos. |
+| **Criterio de aceptación** | 1. Login como `admin@plataforma.com`. 2. Navegar a `/admin/tenants`. 3. Pestaña "Crear tenant": llenar nombre, dominio, seleccionar plan → crear. 4. El tenant aparece en listado. 5. `SELECT * FROM emergencias.tenant` muestra nueva fila. 6. El nuevo tenant aparece en dropdown de KPIs de ADM. |
 
 #### CU-47. Asignar Administrador a un Tenant
 
@@ -593,7 +602,8 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Precondición** | El tenant existe (CU-46) y el usuario existe o se crea. |
 | **Flujo principal** | 1. Administrador selecciona el tenant. 2. Elige "Asignar administrador". 3. Ingresa correo del usuario. 4. El sistema le otorga el rol `tenant_admin` y asocia su `tenant_id`. 5. El usuario recibe una notificación. |
 | **Postcondición** | El usuario puede gestionar talleres y ver KPIs de ese tenant. |
-| **Excepción** | Usuario no existe (se crea automáticamente). |
+| **Excepción** | Usuario no existe (se crea automáticamente con contraseña temporal). |
+| **Criterio de aceptación** | 1. ADM selecciona tenant y asigna admin con email + nombre. 2. `SELECT * FROM emergencias.usuario WHERE email = '...'` muestra rol `ADMIN_TENANT` con `tenant_id` correcto. 3. Nuevo admin puede hacer login y acceder a `/kpis` viendo solo datos de su tenant. |
 
 #### CU-48. Configurar Plan de Servicio por Tenant
 
@@ -606,6 +616,7 @@ A continuación se detalla cada caso de uso siguiendo el formato requerido. Se h
 | **Flujo principal** | 1. Administrador selecciona un tenant. 2. Elige un plan (básico, profesional, enterprise). 3. El sistema actualiza los límites en la tabla de tenant. 4. El backend aplica restricciones al procesar solicitudes de ese tenant (ej. no puede tener más de 10 talleres). |
 | **Postcondición** | El tenant queda limitado según su plan. |
 | **Excepción** | Plan no definido. |
+| **Criterio de aceptación** | 1. ADM selecciona tenant y cambia plan (ej. de "basico" a "profesional"). 2. `SELECT plan_id FROM emergencias.tenant WHERE id = ...` muestra nuevo plan. 3. Los límites del nuevo plan (max_talleres, max_tecnicos, ia_avanzada) se aplican en endpoints de creación. |
 
 ---
 

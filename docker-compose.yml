@@ -92,7 +92,8 @@ services:
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_MINUTES: "120"
       REDIS_URL: redis://redis:6379/0
-      CORS_ORIGINS: http://localhost:4200,http://localhost,http://127.0.0.1:4200
+      CORS_ORIGINS: http://localhost:4200,http://127.0.0.1:4200
+      CORS_ORIGIN_REGEX: "http://(localhost|127\\.0\\.0\\.1):\\d+"
       AWS_ENDPOINT_URL: http://floci:4566
       AWS_S3_PUBLIC_ENDPOINT: http://localhost:4566
       AWS_REGION: us-east-1
@@ -102,6 +103,9 @@ services:
       PUBLIC_TENANT_ID: 22222222-0000-0000-0000-000000000000
       STRIPE_SECRET_KEY: ""
       STRIPE_WEBHOOK_SECRET: ""
+      ACQUIREMOCK_URL: http://acquiremock:8000
+      ACQUIREMOCK_WEBHOOK_SECRET: am-dev-secret-min-32-chars-!!change
+      RESEND_API_KEY: "re_Pu61YT3N_C9vC7EbiFCdpgHbSwNgJFfMM"
       FCM_SERVER_KEY: ""
       OPENAI_API_KEY: ""
       MAPS_API_KEY: ""
@@ -131,6 +135,18 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  acquiremock:
+    build: ./infra/acquiremock
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:///./acquiremock.db
+      WEBHOOK_SECRET: am-dev-secret-min-32-chars-!!change
+      BASE_URL: http://localhost:8001
+      CURRENCY_CODE: BOB
+      CURRENCY_SYMBOL: "Bs."
+    restart: unless-stopped
 
 volumes:
   pgdata:

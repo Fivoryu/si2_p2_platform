@@ -8,4 +8,7 @@ __pycache__/
 .vscode/
 *.bak/
 
+# AcquireMock (clon externo)
+infra/acquiremock/
+
 # Los submódulos (backend/web/mobile) tienen su propio .gitignore dentro de cada repo

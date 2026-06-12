@@ -160,6 +160,7 @@ CREATE TABLE usuario (
     password_hash       VARCHAR(255) NOT NULL,          -- bcrypt/argon2 (nunca texto plano)
     email_verificado    BOOLEAN      NOT NULL DEFAULT FALSE,
     activo              BOOLEAN      NOT NULL DEFAULT TRUE,  -- usuario inhabilitado (CU-01 excepción)
+    must_change_password BOOLEAN     NOT NULL DEFAULT FALSE, -- forzar cambio contraseña tras login
     ultimo_acceso       TIMESTAMPTZ,
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),

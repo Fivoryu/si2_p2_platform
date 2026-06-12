@@ -32,6 +32,16 @@ Puertos abiertos en el security group (según `docs/08_AWS_EC2_DEPLOY.md`): **22
 
 PostgreSQL, Redis y OSRM **no** están expuestos públicamente (solo red interna Docker).
 
+**OSRM (rutas reales):** activo en EC2 con mapa de Bolivia (`osrm-data/map.osrm*`). La API en `:8000` enruta vía `http://osrm:5000` dentro de Docker; la app móvil/web **no** conecta a OSRM directamente — usa `/incidentes/{id}/ruta` y asignaciones. Respuesta esperada: `motor_ruta: "osrm"`.
+
+Regenerar mapa en el servidor:
+
+```bash
+ssh ec2-user@54.175.128.85
+cd ~/si2_p2_platform && bash scripts/prepare-osrm.sh
+sudo docker compose -f docker-compose.yml -f docker-compose.aws.yml --env-file .env.aws restart osrm backend
+```
+
 ---
 
 ## Flutter móvil (APK / Samsung)

@@ -29,11 +29,20 @@ echo "Customizando..."
 $D run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
   osrm-customize /data/bolivia-latest.osrm
 
-for f in "$DATA_DIR"/bolivia-latest.osrm*; do
-  [ -e "$f" ] || continue
-  base="$(basename "$f")"
-  cp -f "$f" "$DATA_DIR/${base/bolivia-latest/map}"
-done
+echo "Renombrando map.osrm*..."
+if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null; then
+  SUDO=sudo
+else
+  SUDO=""
+fi
+$SUDO bash -c "
+  for f in \"$DATA_DIR\"/bolivia-latest.osrm*; do
+    [ -e \"\$f\" ] || continue
+    base=\$(basename \"\$f\")
+    cp -f \"\$f\" \"$DATA_DIR/\${base/bolivia-latest/map}\"
+  done
+  chown -R \"$(whoami)\":\"$(whoami)\" \"$DATA_DIR\" 2>/dev/null || true
+"
 
 echo ""
 echo "Listo. Archivos map.osrm* en osrm-data/"

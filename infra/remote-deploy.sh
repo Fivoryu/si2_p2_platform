@@ -4,7 +4,7 @@ set -euo pipefail
 PUBLIC_HOST="${PUBLIC_HOST:?}"
 JWT_SECRET="${JWT_SECRET:?}"
 WEBHOOK_SECRET="${WEBHOOK_SECRET:-am-prod-secret-min-32-chars-change-me}"
-SKIP_OSRM="${SKIP_OSRM:-1}"
+SKIP_OSRM="${SKIP_OSRM:-0}"
 REPO_DIR="$HOME/si2_p2_platform"
 
 if ! command -v docker &>/dev/null; then

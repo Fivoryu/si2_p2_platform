@@ -83,6 +83,7 @@ services:
     volumes:
       - ./backend/ml/models:/app/ml/models
       - ./backend/app:/app/app
+      - ./backend/secrets:/app/secrets:ro
     ports:
       - "8000:8000"
     environment:
@@ -110,10 +111,13 @@ services:
       EMAIL_PROVIDER: resend
       SES_SENDER_EMAIL: noreply@auxilio.app
       RESEND_SENDER_EMAIL: app@fivoryu.duckdns.org
-      RESEND_API_KEY: "re_Pu61YT3N_C9vC7EbiFCdpgHbSwNgJFfMM"
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       FCM_SERVER_KEY: ""
+      FCM_SERVICE_ACCOUNT_PATH: /app/secrets/firebase-service-account.json
       OPENAI_API_KEY: ""
       MAPS_API_KEY: ""
+      OSRM_URL: http://osrm:5000
+      OSRM_PUBLIC_URL: https://router.project-osrm.org
     depends_on:
       db:
         condition: service_healthy
@@ -121,6 +125,8 @@ services:
         condition: service_healthy
       floci-init:
         condition: service_completed_successfully
+      osrm:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 10s

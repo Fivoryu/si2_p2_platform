@@ -39,72 +39,72 @@ Perfecto. Rehago la sección **2.2 FLUJO DE TRABAJO – ANÁLISIS** con un enfoq
 
 #### 2.2.2.1 Diagramas de Colaboración / Comunicación (casos relevantes)
 
-Se muestran solo los casos de uso más importantes del sistema, con interacciones simples entre **Actor → Interfaz → Controlador → Modelo**.
+Se muestran solo los casos de uso más importantes del sistema, con interacciones simples entre **Actor → Interfaz → Controlador → Modelo**. Los mensajes corresponden a los diagramas de comunicación generados en Enterprise Architect.
 
 ---
 
 **CU-10. Reportar Nueva Emergencia**
 
-1: Reportar() →  
-**Conductor** → **PantallaEmergencia**  
-1.1: GuardarDatos() →  
-**PantallaEmergencia** → **ControladorEmergencia**  
-1.2: AlmacenarIncidente() →  
-**ControladorEmergencia** → **Incidente**  
-1.3: ProcesarIA() →  
-**ControladorEmergencia** → **SistemaIA**
+1: ReportarEmergencia() →  
+**Conductor** → **UI. Reportar Emergencia**  
+1.1: EnviarDatosEmergencia() →  
+**UI. Reportar Emergencia** → **EmergenciaController**  
+1.2: RegistrarIncidente() →  
+**EmergenciaController** → **Incidente**  
+1.3: ProcesarClasificacion() →  
+**Incidente** → **SistemaIA**
 
 ---
 
 **CU-23. Asignar Taller Óptimo**
 
-1: BuscarTalleres() →  
-**ControladorAsignacion** → **ServicioMapas**  
-1.1: CalcularDistancia() →  
-**ServicioMapas** → **ControladorAsignacion**  
-1.2: SeleccionarMejorTaller() →  
-**ControladorAsignacion** → **Taller**  
-1.3: NotificarTaller() →  
-**ControladorAsignacion** → **ServicioPush**
+1: IniciarAsignacion() →  
+**Sistema IA** → **AsignacionController**  
+1.1: ConsultarRutas() →  
+**AsignacionController** → **ServicioMapas**  
+1.2: EvaluarDisponibilidad() →  
+**ServicioMapas** → **Taller**  
+1.3: EnviarNotificacion() →  
+**Taller** → **ServicioPush**
 
 ---
 
 **CU-25. Aceptar Solicitud (Taller)**
 
-1: Aceptar() →  
-**Taller** → **PantallaSolicitud**  
-1.1: CambiarEstado() →  
-**PantallaSolicitud** → **ControladorServicio**  
-1.2: ActualizarIncidente() →  
-**ControladorServicio** → **Incidente**  
-1.3: EnviarNotificacion() →  
-**ControladorServicio** → **Cliente**
+1: AceptarSolicitud() →  
+**Taller** → **UI. Solicitud**  
+1.1: ConfirmarAceptacion() →  
+**UI. Solicitud** → **ServicioController**  
+1.2: ActualizarEstado() →  
+**ServicioController** → **Incidente**  
+1.3: NotificarCliente() →  
+**Incidente** → **Cliente**
 
 ---
 
 **CU-33. Conectar a WebSocket (Tiempo Real)**
 
-1: Conectar() →  
-**Cliente** → **PantallaSeguimiento**  
-1.1: AbrirSocket() →  
-**PantallaSeguimiento** → **ControladorWebSocket**  
-1.2: ValidarToken() →  
-**ControladorWebSocket** → **Seguridad**  
-1.3: RegistrarConexion() →  
-**ControladorWebSocket** → **GestorSesiones**
+1: ConectarSeguimiento() →  
+**Cliente** → **UI. Seguimiento**  
+1.1: AbrirConexion() →  
+**UI. Seguimiento** → **WebSocketController**  
+1.2: ValidarCredenciales() →  
+**WebSocketController** → **Seguridad**  
+1.3: RegistrarSesion() →  
+**Seguridad** → **GestorSesiones**
 
 ---
 
 **CU-36. Actualizar Estado del Incidente (Taller)**
 
 1: ActualizarEstado() →  
-**Taller** → **PantallaServicio**  
-1.1: CambiarA() →  
-**PantallaServicio** → **ControladorServicio**  
-1.2: GuardarEstado() →  
-**ControladorServicio** → **Incidente**  
-1.3: BroadcastWebSocket() →  
-**ControladorServicio** → **GestorWebSocket**
+**Taller** → **UI. Servicio**  
+1.1: EnviarNuevoEstado() →  
+**UI. Servicio** → **ServicioController**  
+1.2: GuardarCambioEstado() →  
+**ServicioController** → **Incidente**  
+1.3: PublicarCambio() →  
+**Incidente** → **GestorWebSocket**
 
 ---
 
@@ -114,10 +114,12 @@ Se muestran solo los casos de uso más importantes del sistema, con interaccione
 **Sistema** → **DetectorConectividad**  
 1.1: ObtenerPendientes() →  
 **DetectorConectividad** → **RepositorioLocal**  
-1.2: EnviarAlServidor() →  
-**RepositorioLocal** → **ControladorSincronizacion**  
-1.3: ConfirmarSync() →  
-**ControladorSincronizacion** → **RepositorioLocal**
+1.2: PrepararLoteSync() →  
+**RepositorioLocal** → **SyncController**  
+1.3: EnviarAlServidor() →  
+**SyncController** → **BackendSync**  
+1.4: PersistirSincronizacion() →  
+**BackendSync** → **BaseDatos**
 
 ---
 
@@ -125,12 +127,27 @@ Se muestran solo los casos de uso más importantes del sistema, con interaccione
 
 1: SolicitarKPIs() →  
 **Administrador** → **PanelWeb**  
-1.1: CalcularIndicadores() →  
-**PanelWeb** → **ControladorKPI**  
+1.1: ConsultarIndicadores() →  
+**PanelWeb** → **KPIController**  
 1.2: LeerMetricas() →  
-**ControladorKPI** → **BaseDatos**  
+**KPIController** → **BaseDatos**  
 1.3: MostrarGraficos() →  
-**ControladorKPI** → **PanelWeb**
+**BaseDatos** → **DashboardKPIs**
+
+---
+
+**CU-46. Crear Nuevo Tenant**
+
+1: CrearTenant() →  
+**Administrador** → **PanelAdmin**  
+1.1: EnviarDatosTenant() →  
+**PanelAdmin** → **TenantController**  
+1.2: ValidarPermisos() →  
+**TenantController** → **AuthMiddleware**  
+1.3: RegistrarTenant() →  
+**AuthMiddleware** → **BaseDatos**  
+1.4: CrearConfiguracionTenant() →  
+**BaseDatos** → **Tenant**
 
 ---
 

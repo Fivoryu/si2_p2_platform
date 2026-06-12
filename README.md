@@ -111,4 +111,22 @@ codigo_si2_p2/
 └── docker-compose.yml
 ```
 
+## 5. Deploy AWS (EC2 + Docker Compose)
+
+Despliegue rápido del stack completo (backend, web, AcquireMock, OSRM, S3) en una instancia EC2:
+
+```bash
+# En EC2 (Amazon Linux 2023)
+cp .env.aws.example .env.aws   # configurar PUBLIC_HOST y secretos
+bash scripts/deploy-aws-ec2.sh
+```
+
+Guía completa: [`docs/08_AWS_EC2_DEPLOY.md`](docs/08_AWS_EC2_DEPLOY.md)
+
+Push de los 4 repos:
+
+```powershell
+.\scripts\push-all-repos.ps1 -Message "feat: actualización"
+```
+
 Documentación detallada: `docs/00_OVERVIEW.md`, `PlanDeImplementacion.md`.

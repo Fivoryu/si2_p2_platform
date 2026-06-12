@@ -10,5 +10,8 @@ __pycache__/
 
 # AcquireMock (clon externo)
 infra/acquiremock/
+infra/acquiremock.zip
+osrm-data/
+.env.aws
 
 # Los submódulos (backend/web/mobile) tienen su propio .gitignore dentro de cada repo

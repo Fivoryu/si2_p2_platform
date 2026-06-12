@@ -1,0 +1,67 @@
+# Override producción AWS (EC2 + S3 real).
+# Uso: docker compose -f docker-compose.yml -f docker-compose.aws.yml --env-file .env.aws up -d --build
+#
+# Requiere: PUBLIC_HOST, JWT_SECRET, ACQUIREMOCK_WEBHOOK_SECRET en .env.aws
+
+services:
+  floci:
+    profiles: ["floci-local"]
+
+  floci-init:
+    profiles: ["floci-local"]
+
+  db:
+    ports: []
+
+  redis:
+    ports: []
+
+  osrm:
+    ports: []
+
+  backend:
+    volumes:
+      - ./backend/secrets:/app/secrets:ro
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AWS_ENDPOINT_URL: ""
+      AWS_S3_PUBLIC_ENDPOINT: ""
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      S3_BUCKET_EVIDENCIAS: ${S3_BUCKET_EVIDENCIAS:-emergencias-evidencias}
+      CORS_ORIGINS: http://${PUBLIC_HOST}
+      CORS_ORIGIN_REGEX: ""
+      ACQUIREMOCK_URL: http://acquiremock:8000
+      ACQUIREMOCK_WEBHOOK_SECRET: ${ACQUIREMOCK_WEBHOOK_SECRET}
+      BACKEND_INTERNAL_URL: http://backend:8000
+      WEB_PUBLIC_URL: http://${PUBLIC_HOST}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      OSRM_URL: http://osrm:5000
+      OSRM_PUBLIC_URL: https://router.project-osrm.org
+      ENVIRONMENT: production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      osrm:
+        condition: service_started
+      acquiremock:
+        condition: service_started
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        API_URL: http://${PUBLIC_HOST}:8000
+        WS_URL: ws://${PUBLIC_HOST}:8000
+    ports:
+      - "80:80"
+
+  acquiremock:
+    environment:
+      WEBHOOK_SECRET: ${ACQUIREMOCK_WEBHOOK_SECRET}
+      BASE_URL: http://${PUBLIC_HOST}:8001

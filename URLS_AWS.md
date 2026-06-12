@@ -2,7 +2,7 @@
 
 Stack desplegado con **Docker Compose** en una instancia EC2 (región `us-east-1`).
 
-> IP pública (Elastic IP): **`32.196.207.97`**  
+> IP pública (Elastic IP): **`54.175.128.85`**  
 > Fuente: `infra/aws-deploy.env`
 
 ---
@@ -11,19 +11,19 @@ Stack desplegado con **Docker Compose** en una instancia EC2 (región `us-east-1
 
 | Servicio | URL | Descripción |
 |----------|-----|-------------|
-| **Web Angular** | http://32.196.207.97 | Panel taller / admin (puerto 80) |
-| **API Backend** | http://32.196.207.97:8000 | REST FastAPI |
-| **Swagger / Docs** | http://32.196.207.97:8000/docs | Documentación interactiva |
-| **Health API** | http://32.196.207.97:8000/health | Estado del backend |
-| **AcquireMock** | http://32.196.207.97:8001 | Mock de pagos (Stripe-like) |
-| **WebSocket** | ws://32.196.207.97:8000 | Tracking en tiempo real |
+| **Web Angular** | http://54.175.128.85 | Panel taller / admin (puerto 80) |
+| **API Backend** | http://54.175.128.85:8000 | REST FastAPI |
+| **Swagger / Docs** | http://54.175.128.85:8000/docs | Documentación interactiva |
+| **Health API** | http://54.175.128.85:8000/health | Estado del backend |
+| **AcquireMock** | http://54.175.128.85:8001 | Mock de pagos (Stripe-like) |
+| **WebSocket** | ws://54.175.128.85:8000 | Tracking en tiempo real |
 
 ### Recursos AWS (infra)
 
 | Recurso | Valor |
 |---------|--------|
 | Región | `us-east-1` |
-| Elastic IP | `32.196.207.97` |
+| Elastic IP | `54.175.128.85` |
 | Security Group | `sg-0b3240cae14732a1a` |
 | Key pair EC2 | `sw1-examen` |
 | Bucket S3 evidencias | `emergencias-evidencias` |
@@ -39,16 +39,16 @@ PostgreSQL, Redis y OSRM **no** están expuestos públicamente (solo red interna
 ```powershell
 cd mobile
 flutter run -d <DEVICE_ID> `
-  --dart-define=API_URL=http://32.196.207.97:8000 `
-  --dart-define=WS_URL=ws://32.196.207.97:8000
+  --dart-define=API_URL=http://54.175.128.85:8000 `
+  --dart-define=WS_URL=ws://54.175.128.85:8000
 ```
 
 APK release:
 
 ```powershell
 flutter build apk --release `
-  --dart-define=API_URL=http://32.196.207.97:8000 `
-  --dart-define=WS_URL=ws://32.196.207.97:8000
+  --dart-define=API_URL=http://54.175.128.85:8000 `
+  --dart-define=WS_URL=ws://54.175.128.85:8000
 ```
 
 ---
@@ -60,8 +60,8 @@ flutter build apk --release `
 ```powershell
 cd mobile
 flutter run -d chrome `
-  --dart-define=API_URL=http://32.196.207.97:8000 `
-  --dart-define=WS_URL=ws://32.196.207.97:8000
+  --dart-define=API_URL=http://54.175.128.85:8000 `
+  --dart-define=WS_URL=ws://54.175.128.85:8000
 ```
 
 ### CORS (importante)
@@ -69,7 +69,7 @@ flutter run -d chrome `
 Chrome sirve la app en un origen como `http://localhost:65360`. El backend en AWS, por defecto, solo permite CORS desde la web Angular:
 
 ```
-http://32.196.207.97
+http://54.175.128.85
 ```
 
 Para que **Flutter web en tu PC** pueda llamar a la API AWS, en el servidor EC2 añade en `.env.aws`:
@@ -112,8 +112,8 @@ Ver [`USUARIOS_DEMO.md`](USUARIOS_DEMO.md). Ejemplos:
 Desde tu PC:
 
 ```powershell
-curl.exe http://32.196.207.97:8000/health
-curl.exe -I http://32.196.207.97/
+curl.exe http://54.175.128.85:8000/health
+curl.exe -I http://54.175.128.85/
 ```
 
 Respuesta esperada del health: JSON con estado OK.

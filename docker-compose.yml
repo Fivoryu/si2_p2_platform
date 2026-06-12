@@ -107,8 +107,9 @@ services:
       ACQUIREMOCK_WEBHOOK_SECRET: am-dev-secret-min-32-chars-!!change
       BACKEND_INTERNAL_URL: http://backend:8000
       WEB_PUBLIC_URL: http://localhost:4200
-      EMAIL_PROVIDER: console
+      EMAIL_PROVIDER: resend
       SES_SENDER_EMAIL: noreply@auxilio.app
+      RESEND_SENDER_EMAIL: app@fivoryu.duckdns.org
       RESEND_API_KEY: "re_Pu61YT3N_C9vC7EbiFCdpgHbSwNgJFfMM"
       FCM_SERVER_KEY: ""
       OPENAI_API_KEY: ""

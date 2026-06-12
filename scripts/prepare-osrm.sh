@@ -17,15 +17,16 @@ else
 fi
 
 echo "Extrayendo grafo OSRM..."
-docker run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
+if docker info >/dev/null 2>&1; then D=docker; else D="sudo docker"; fi
+$D run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
   osrm-extract -p /opt/car.lua /data/bolivia-latest.osm.pbf
 
 echo "Particionando..."
-docker run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
+$D run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
   osrm-partition /data/bolivia-latest.osrm
 
 echo "Customizando..."
-docker run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
+$D run --rm -v "$DATA_DIR:/data" osrm/osrm-backend \
   osrm-customize /data/bolivia-latest.osrm
 
 for f in "$DATA_DIR"/bolivia-latest.osrm*; do

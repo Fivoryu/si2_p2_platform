@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_especialidad_taller ON especialidad_taller(taller
 CREATE INDEX IF NOT EXISTS idx_especialidad_tenant ON especialidad_taller(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tecnico_especialidad_esp ON tecnico_especialidad(especialidad_id);
 
+DROP TRIGGER IF EXISTS trg_especialidad_taller_updated_at ON emergencias.especialidad_taller;
 CREATE TRIGGER trg_especialidad_taller_updated_at
     BEFORE UPDATE ON emergencias.especialidad_taller
     FOR EACH ROW EXECUTE FUNCTION emergencias.fn_set_updated_at();

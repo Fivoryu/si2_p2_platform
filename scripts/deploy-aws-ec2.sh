@@ -8,16 +8,23 @@ ACQUIREMOCK_URL="${ACQUIREMOCK_URL:-https://github.com/ashfromsky/acquiremock.gi
 INSTALL_DIR="${INSTALL_DIR:-$HOME/si2_p2_platform}"
 SKIP_OSRM="${SKIP_OSRM:-0}"
 
+docker_cmd() {
+  if docker info >/dev/null 2>&1; then
+    docker "$@"
+  else
+    sudo docker "$@"
+  fi
+}
+
 echo "=== Instalando Docker ==="
 if ! command -v docker &>/dev/null; then
-  sudo dnf update -y
-  sudo dnf install -y docker git curl
+  sudo dnf install -y docker git
   sudo systemctl enable --now docker
   sudo usermod -aG docker "$USER"
   echo "Docker instalado. Si falla permisos, ejecuta: newgrp docker"
 fi
 
-if ! docker compose version &>/dev/null; then
+if ! docker_cmd compose version &>/dev/null; then
   sudo mkdir -p /usr/local/lib/docker/cli-plugins
   COMPOSE_VER="v2.29.2"
   sudo curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VER}/docker-compose-linux-$(uname -m)" \
@@ -66,7 +73,7 @@ if [ ! -f backend/secrets/firebase-service-account.json ]; then
 fi
 
 echo "=== Levantando stack ==="
-docker compose -f docker-compose.yml -f docker-compose.aws.yml --env-file .env.aws up -d --build
+docker_cmd compose -f docker-compose.yml -f docker-compose.aws.yml --env-file .env.aws up -d --build
 
 echo "=== Esperando health checks ==="
 for i in $(seq 1 30); do
